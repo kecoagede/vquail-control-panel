@@ -163,6 +163,48 @@
             color: #777;
         }
 
+        /* API Key Settings */
+        .api-key-settings {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            text-align: left;
+        }
+
+        .api-key-settings h3 {
+            font-size: 1rem;
+            margin-bottom: 10px;
+            color: #555;
+        }
+
+        .api-key-display {
+            background-color: #e8f4f8;
+            border: 1px solid #bce8f1;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: monospace;
+            word-break: break-all;
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+
+        .copy-btn {
+            background-color: #5bc0de;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            margin-top: 8px;
+            transition: var(--transition);
+        }
+
+        .copy-btn:hover {
+            background-color: #31b0d5;
+        }
+
         /* MQTT Connection Status */
         .mqtt-status {
             position: fixed;
@@ -616,6 +658,22 @@
             background-color: #e9ecef;
         }
 
+        /* Security Badge */
+        .security-badge {
+            display: inline-flex;
+            align-items: center;
+            background-color: rgba(39, 174, 96, 0.1);
+            color: var(--success-color);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            margin-left: 10px;
+        }
+
+        .security-badge i {
+            margin-right: 5px;
+        }
+
         /* Responsive adjustments */
         @media (max-width: 768px) {
             .header {
@@ -662,11 +720,26 @@
                 <h2>System Login</h2>
                 <div class="form-group">
                     <label for="username">Username</label>
-                    <input type="text" id="username" class="form-control" placeholder="Enter username" value="vquail">
+                    <input type="text" id="username" class="form-control" placeholder="Enter username" value="admin">
                 </div>
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" class="form-control" placeholder="Enter password" value="12345">
+                    <input type="password" id="password" class="form-control" placeholder="Enter password" value="vquail2024">
+                </div>
+                
+                <div class="api-key-settings">
+                    <h3>API Key (for MQTT authentication)</h3>
+                    <input type="text" id="apiKey" class="form-control" placeholder="Enter your 32-character API key" value="">
+                    <div class="api-key-display" id="apiKeyDisplay" style="display: none;">
+                        <strong>Your API Key:</strong><br>
+                        <span id="apiKeyValue"></span>
+                        <button class="copy-btn" onclick="copyAPIKey()">
+                            <i class="fas fa-copy"></i> Copy
+                        </button>
+                    </div>
+                    <p style="font-size: 0.8rem; color: #666; margin-top: 8px;">
+                        The API key is required for secure communication. Get it from your ESP32 system logs.
+                    </p>
                 </div>
                 
                 <div class="mqtt-settings">
@@ -683,6 +756,14 @@
                         <label for="mqttClientId">Client ID</label>
                         <input type="text" id="mqttClientId" class="form-control" placeholder="vquail-web-client" value="vquail-web-client">
                     </div>
+                    <div class="form-group">
+                        <label for="mqttUsername">MQTT Username</label>
+                        <input type="text" id="mqttUsername" class="form-control" placeholder="vquail" value="vquail">
+                    </div>
+                    <div class="form-group">
+                        <label for="mqttPassword">MQTT Password</label>
+                        <input type="password" id="mqttPassword" class="form-control" placeholder="vquail2024" value="vquail2024">
+                    </div>
                 </div>
                 
                 <button class="btn" id="loginBtn">Login & Connect to MQTT</button>
@@ -690,7 +771,8 @@
                     Invalid username or password. Please try again.
                 </div>
                 <div class="footer-note">
-                    <p>Default credentials: vquail / 12345</p>
+                    <p>Default credentials: admin / vquail2024</p>
+                    <p>API Key: Check ESP32 serial output after first boot</p>
                 </div>
             </div>
         </div>
@@ -701,7 +783,7 @@
             <div class="header">
                 <div class="header-info">
                     <h1>VQuail System Control Panel</h1>
-                    <p>Version: VQUAIL_V2.3 | Connected via MQTT | Last update: <span id="lastUpdate">--:--:--</span></p>
+                    <p>Version: VQUAIL_V3.0 | Secure Mode <span class="security-badge"><i class="fas fa-shield-alt"></i> Encrypted</span> | Last update: <span id="lastUpdate">--:--:--</span></p>
                 </div>
                 <div class="header-stats">
                     <div class="stat-item">
@@ -770,6 +852,9 @@
                             <button class="btn-control btn-on" id="fanOnBtn" data-device="fan" data-state="true">ON</button>
                             <button class="btn-control btn-off active" id="fanOffBtn" data-device="fan" data-state="false">OFF</button>
                         </div>
+                        <div style="font-size: 0.85rem; color: #666; margin-top: 8px;">
+                            Last control: <span id="fanControlSource">system</span>
+                        </div>
                     </div>
                     
                     <div class="control-section">
@@ -780,6 +865,9 @@
                         <div class="control-buttons">
                             <button class="btn-control btn-on" id="heatOnBtn" data-device="heat" data-state="true">ON</button>
                             <button class="btn-control btn-off active" id="heatOffBtn" data-device="heat" data-state="false">OFF</button>
+                        </div>
+                        <div style="font-size: 0.85rem; color: #666; margin-top: 8px;">
+                            Last control: <span id="heatControlSource">system</span>
                         </div>
                     </div>
                     
@@ -795,6 +883,9 @@
                             <p style="color: #666; font-size: 0.9rem; margin-top: 10px;">
                                 <span id="modeDescription">System is in automatic mode. Devices will be controlled based on environmental conditions.</span>
                             </p>
+                            <div style="margin-top: 10px; font-size: 0.85rem; color: #666;">
+                                Override: <span id="overrideStatus">No</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -879,8 +970,8 @@
                             <div class="info-value" id="sdStatus">Awaiting data...</div>
                         </div>
                         <div class="info-item">
-                            <div class="info-label">Last Data Received</div>
-                            <div class="info-value" id="lastDataReceived">--:--:--</div>
+                            <div class="info-label">Control Source</div>
+                            <div class="info-value" id="controlSource">system</div>
                         </div>
                     </div>
                 </div>
@@ -889,7 +980,7 @@
             <!-- Footer -->
             <div class="footer">
                 <div>
-                    <p>VQuail Poultry Management System | <span id="currentTime">--:--:--</span> | MQTT Client: <span id="mqttClientIdDisplay">vquail-web-client</span></p>
+                    <p>VQuail Poultry Management System | <span id="currentTime">--:--:--</span> | MQTT Client: <span id="mqttClientIdDisplay">vquail-web-client</span> | API: <span id="apiKeyStatus">Not Set</span></p>
                 </div>
                 <div>
                     <button class="logout-btn" id="logoutBtn">
@@ -905,6 +996,7 @@
         let mqttClient = null;
         let lastDataTimestamp = 0;
         let dataTimeout = null;
+        let currentAPIKey = "";
 
         // Login functionality
         document.addEventListener('DOMContentLoaded', function() {
@@ -918,23 +1010,43 @@
             if(localStorage.getItem('vquail_loggedin') === 'true') {
                 loginPage.style.display = 'none';
                 dashboard.style.display = 'block';
-                loadMQTTSettings();
+                loadSettings();
                 connectToMQTT();
+            }
+            
+            // Load saved API key if exists
+            const savedAPIKey = localStorage.getItem('vquail_api_key');
+            if(savedAPIKey) {
+                document.getElementById('apiKey').value = savedAPIKey;
+                currentAPIKey = savedAPIKey;
+                document.getElementById('apiKeyStatus').textContent = "Set";
+                document.getElementById('apiKeyStatus').className = "security-badge";
+                document.getElementById('apiKeyDisplay').style.display = 'block';
+                document.getElementById('apiKeyValue').textContent = savedAPIKey;
             }
             
             // Login button event
             loginBtn.addEventListener('click', function() {
                 const username = document.getElementById('username').value;
                 const password = document.getElementById('password').value;
+                currentAPIKey = document.getElementById('apiKey').value.trim();
                 
-                // Default credentials: vquail / 12345
-                if(username === 'vquail' && password === '12345') {
+                // Default credentials: admin / vquail2024
+                if(username === 'admin' && password === 'vquail2024') {
                     loginError.style.display = 'none';
+                    
+                    // Validate API key length
+                    if(currentAPIKey.length !== 32 && currentAPIKey.length > 0) {
+                        alert("API Key must be exactly 32 characters long. Leave empty if not using secure mode.");
+                        return;
+                    }
+                    
                     localStorage.setItem('vquail_loggedin', 'true');
-                    saveMQTTSettings();
+                    localStorage.setItem('vquail_api_key', currentAPIKey);
+                    saveSettings();
                     loginPage.style.display = 'none';
                     dashboard.style.display = 'block';
-                    loadMQTTSettings();
+                    loadSettings();
                     connectToMQTT();
                 } else {
                     loginError.style.display = 'block';
@@ -948,6 +1060,18 @@
                 }
             });
             
+            // API Key input event
+            document.getElementById('apiKey').addEventListener('input', function() {
+                const apiKey = this.value.trim();
+                if(apiKey.length === 32) {
+                    document.getElementById('apiKeyDisplay').style.display = 'block';
+                    document.getElementById('apiKeyValue').textContent = apiKey;
+                    currentAPIKey = apiKey;
+                } else {
+                    document.getElementById('apiKeyDisplay').style.display = 'none';
+                }
+            });
+            
             // Logout button event
             logoutBtn.addEventListener('click', function() {
                 if(mqttClient && mqttClient.isConnected()) {
@@ -956,7 +1080,6 @@
                 localStorage.removeItem('vquail_loggedin');
                 dashboard.style.display = 'none';
                 loginPage.style.display = 'block';
-                document.getElementById('username').value = '';
                 document.getElementById('password').value = '';
                 loginError.style.display = 'none';
                 updateMQTTStatus(false);
@@ -973,23 +1096,50 @@
             setInterval(checkDataTimeout, 10000);
         });
         
-        function saveMQTTSettings() {
+        function saveSettings() {
             localStorage.setItem('mqtt_broker', document.getElementById('mqttBroker').value);
             localStorage.setItem('mqtt_port', document.getElementById('mqttPort').value);
             localStorage.setItem('mqtt_client_id', document.getElementById('mqttClientId').value);
+            localStorage.setItem('mqtt_username', document.getElementById('mqttUsername').value);
+            localStorage.setItem('mqtt_password', document.getElementById('mqttPassword').value);
+            localStorage.setItem('api_key', currentAPIKey);
         }
         
-        function loadMQTTSettings() {
+        function loadSettings() {
             document.getElementById('mqttBroker').value = localStorage.getItem('mqtt_broker') || 'broker.mqtt-dashboard.com';
             document.getElementById('mqttPort').value = localStorage.getItem('mqtt_port') || '1883';
             document.getElementById('mqttClientId').value = localStorage.getItem('mqtt_client_id') || 'vquail-web-' + Math.floor(Math.random() * 10000);
+            document.getElementById('mqttUsername').value = localStorage.getItem('mqtt_username') || 'vquail';
+            document.getElementById('mqttPassword').value = localStorage.getItem('mqtt_password') || 'vquail2024';
+            
+            const apiKey = localStorage.getItem('api_key') || '';
+            document.getElementById('apiKey').value = apiKey;
+            document.getElementById('apiKeyStatus').textContent = apiKey ? "Set" : "Not Set";
+            if(apiKey) {
+                document.getElementById('apiKeyStatus').className = "security-badge";
+            }
+            
             document.getElementById('mqttClientIdDisplay').textContent = document.getElementById('mqttClientId').value;
+        }
+        
+        function copyAPIKey() {
+            const apiKey = document.getElementById('apiKeyValue').textContent;
+            navigator.clipboard.writeText(apiKey).then(function() {
+                const copyBtn = document.querySelector('.copy-btn');
+                const originalText = copyBtn.innerHTML;
+                copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                setTimeout(() => {
+                    copyBtn.innerHTML = originalText;
+                }, 2000);
+            });
         }
         
         function connectToMQTT() {
             const broker = document.getElementById('mqttBroker').value;
             const port = parseInt(document.getElementById('mqttPort').value);
             const clientId = document.getElementById('mqttClientId').value;
+            const username = document.getElementById('mqttUsername').value;
+            const password = document.getElementById('mqttPassword').value;
             
             updateMQTTStatus(false, 'Connecting...');
             
@@ -1009,6 +1159,12 @@
                 reconnect: true
             };
             
+            // Add authentication if provided
+            if(username && password) {
+                options.userName = username;
+                options.password = password;
+            }
+            
             // Connect the client
             mqttClient.connect(options);
         }
@@ -1017,13 +1173,24 @@
             console.log("MQTT Connected successfully");
             updateMQTTStatus(true, 'Connected');
             
-            // Subscribe to VQuail topics
-            mqttClient.subscribe("vquail/data");
-            mqttClient.subscribe("vquail/device");
-            mqttClient.subscribe("vquail/alarms");
-            mqttClient.subscribe("vquail/status");
-            
-            console.log("Subscribed to topics: vquail/data, vquail/device, vquail/alarms, vquail/status");
+            // Subscribe to secure VQuail topics
+            if(currentAPIKey) {
+                // Secure mode with API key
+                mqttClient.subscribe("vquail/secure/status/sensors");
+                mqttClient.subscribe("vquail/secure/status/control");
+                mqttClient.subscribe("vquail/secure/alarms");
+                mqttClient.subscribe("vquail/secure/events/#");
+                
+                console.log("Subscribed to secure topics with API key authentication");
+            } else {
+                // Fallback to non-secure topics
+                mqttClient.subscribe("vquail/data");
+                mqttClient.subscribe("vquail/device");
+                mqttClient.subscribe("vquail/alarms");
+                mqttClient.subscribe("vquail/status");
+                
+                console.log("Subscribed to non-secure topics (no API key)");
+            }
         }
         
         function onConnectFail(response) {
@@ -1053,18 +1220,27 @@
             try {
                 const data = JSON.parse(message.payloadString);
                 
+                // Validate API key for secure topics
+                if(message.destinationName.startsWith("vquail/secure/") && data.apikey !== currentAPIKey) {
+                    console.warn("Received message with invalid API key");
+                    return;
+                }
+                
                 switch(message.destinationName) {
+                    case "vquail/secure/status/sensors":
                     case "vquail/data":
                         updateSensorData(data);
                         break;
+                    case "vquail/secure/status/control":
                     case "vquail/device":
                         updateDeviceStatus(data);
                         break;
+                    case "vquail/secure/alarms":
                     case "vquail/alarms":
                         updateAlarms(data);
                         break;
-                    case "vquail/status":
-                        updateSystemStatus(data);
+                    case "vquail/secure/events/stage_change":
+                        updateStageChange(data);
                         break;
                 }
             } catch(e) {
@@ -1080,8 +1256,8 @@
             if(connected) {
                 statusElement.className = 'mqtt-status mqtt-connected';
                 statusElement.style.display = 'block';
-                statusText.textContent = message || 'Connected to MQTT';
-                dashboardStatus.textContent = 'Connected';
+                statusText.textContent = currentAPIKey ? `Secure: ${message}` : message || 'Connected to MQTT';
+                dashboardStatus.textContent = currentAPIKey ? 'Secure' : 'Connected';
                 dashboardStatus.className = 'info-value status-ok';
             } else {
                 statusElement.className = 'mqtt-status mqtt-disconnected';
@@ -1107,12 +1283,15 @@
                 updateSensorStatus(data.temp, data.hum, data.stage);
             }
             
+            // Update smooth values if available
+            if(data.smooth_temp !== undefined) {
+                console.log("Smooth Temp: " + data.smooth_temp.toFixed(1) + "°C");
+            }
+            
             // Update stage information
             if(data.stage !== undefined) {
                 document.getElementById('stageStat').textContent = data.stage;
-                if(data.stageName) {
-                    document.getElementById('currentStageName').textContent = data.stage;
-                }
+                document.getElementById('currentStageName').textContent = data.stage;
                 updateStageVisualization(data.stage, data.age || 0);
             }
             
@@ -1128,38 +1307,74 @@
             }
             
             // Update auto mode
-            if(data.auto !== undefined) {
-                document.getElementById('autoToggle').checked = data.auto;
-                updateModeDescription(data.auto);
+            if(data.auto_mode !== undefined) {
+                document.getElementById('autoToggle').checked = data.auto_mode;
+                updateModeDescription(data.auto_mode);
+            }
+            
+            // Update override status
+            if(data.override !== undefined) {
+                document.getElementById('overrideStatus').textContent = data.override ? "Yes" : "No";
+            }
+            
+            // Update timestamp
+            if(data.timestamp) {
+                document.getElementById('lastUpdate').textContent = data.timestamp.split(' ')[1] || data.timestamp;
             }
             
             // Update alarm status
             if(data.alarm !== undefined && data.alarm) {
-                // Alarm is handled separately via vquail/alarms topic
+                // Alarm is handled separately via alarms topic
             }
         }
         
         function updateDeviceStatus(data) {
-            if(data.device === "fan" || data.device === "fan_lamp") {
-                const isOn = data.state === true || data.state === "true" || data.state === "ON";
+            // Update fan status
+            if(data.fan !== undefined) {
+                const isOn = data.fan === true || data.fan === "true" || data.fan === "ON";
                 document.getElementById('fanOnBtn').classList.toggle('active', isOn);
                 document.getElementById('fanOffBtn').classList.toggle('active', !isOn);
                 
-                if(data.manual) {
+                if(data.control_source) {
+                    document.getElementById('fanControlSource').textContent = data.control_source;
+                }
+                
+                if(data.manual || data.control_source === "web" || data.control_source === "mqtt") {
                     document.getElementById('fanMode').textContent = "Manual";
                     document.getElementById('fanMode').className = "mode-indicator mode-manual";
+                } else {
+                    document.getElementById('fanMode').textContent = "Auto";
+                    document.getElementById('fanMode').className = "mode-indicator mode-auto";
                 }
             }
             
-            if(data.device === "heat" || data.device === "heat_lamp") {
-                const isOn = data.state === true || data.state === "true" || data.state === "ON";
+            // Update heat lamp status
+            if(data.heat !== undefined) {
+                const isOn = data.heat === true || data.heat === "true" || data.heat === "ON";
                 document.getElementById('heatOnBtn').classList.toggle('active', isOn);
                 document.getElementById('heatOffBtn').classList.toggle('active', !isOn);
                 
-                if(data.manual) {
+                if(data.control_source) {
+                    document.getElementById('heatControlSource').textContent = data.control_source;
+                }
+                
+                if(data.manual || data.control_source === "web" || data.control_source === "mqtt") {
                     document.getElementById('heatMode').textContent = "Manual";
                     document.getElementById('heatMode').className = "mode-indicator mode-manual";
+                } else {
+                    document.getElementById('heatMode').textContent = "Auto";
+                    document.getElementById('heatMode').className = "mode-indicator mode-auto";
                 }
+            }
+            
+            // Update control source
+            if(data.control_source) {
+                document.getElementById('controlSource').textContent = data.control_source;
+            }
+            
+            // Update override
+            if(data.override !== undefined) {
+                document.getElementById('overrideStatus').textContent = data.override ? "Yes" : "No";
             }
         }
         
@@ -1188,7 +1403,7 @@
             
             const alarmTime = document.createElement('div');
             alarmTime.className = 'alarm-time';
-            alarmTime.textContent = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+            alarmTime.textContent = data.time || new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
             
             alarmElement.appendChild(alarmMessage);
             alarmElement.appendChild(alarmTime);
@@ -1208,21 +1423,28 @@
                 setTimeout(() => {
                     document.title = "VQuail System Control Panel";
                 }, 2000);
+                
+                // Play alert sound if supported
+                try {
+                    const audio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAZGF0YQQ=');
+                    audio.play().catch(e => console.log("Audio alert failed:", e));
+                } catch(e) {
+                    console.log("Audio not supported");
+                }
             }
         }
         
-        function updateSystemStatus(data) {
-            if(data.wifi !== undefined) {
-                const wifiStatus = document.getElementById('wifiStatus');
-                wifiStatus.textContent = data.wifi ? "Connected" : "Disconnected";
-                wifiStatus.className = `info-value ${data.wifi ? 'status-ok' : 'status-danger'}`;
+        function updateStageChange(data) {
+            console.log("Stage change detected:", data);
+            if(data.new_stage) {
+                updateStageVisualization(getStageNumber(data.new_stage), data.age || 0);
+                showNotification(`Stage changed to ${data.new_stage}`);
             }
-            
-            if(data.sd !== undefined) {
-                const sdStatus = document.getElementById('sdStatus');
-                sdStatus.textContent = data.sd ? "Ready" : "Not Ready";
-                sdStatus.className = `info-value ${data.sd ? 'status-ok' : 'status-danger'}`;
-            }
+        }
+        
+        function getStageNumber(stageName) {
+            const stages = ["Brooding Week 1", "Brooding Week 2", "Grower Phase", "Adult Layer"];
+            return stages.indexOf(stageName) + 1;
         }
         
         function updateSensorStatus(temp, hum, stage) {
@@ -1409,21 +1631,27 @@
                         document.getElementById('fanOffBtn').classList.toggle('active', !state);
                         document.getElementById('fanMode').textContent = "Manual";
                         document.getElementById('fanMode').className = "mode-indicator mode-manual";
+                        document.getElementById('fanControlSource').textContent = "web";
                     } else if(device === 'heat') {
                         document.getElementById('heatOnBtn').classList.toggle('active', state);
                         document.getElementById('heatOffBtn').classList.toggle('active', !state);
                         document.getElementById('heatMode').textContent = "Manual";
                         document.getElementById('heatMode').className = "mode-indicator mode-manual";
+                        document.getElementById('heatControlSource').textContent = "web";
                     }
                     
+                    // Prepare MQTT message with API key
+                    const messageData = {
+                        [device]: state,
+                        apikey: currentAPIKey
+                    };
+                    
                     // Send MQTT command
-                    const message = new Paho.MQTT.Message(JSON.stringify({
-                        [device]: state
-                    }));
-                    message.destinationName = "vquail/control/devices";
+                    const message = new Paho.MQTT.Message(JSON.stringify(messageData));
+                    message.destinationName = currentAPIKey ? "vquail/secure/control" : "vquail/control/devices";
                     mqttClient.send(message);
                     
-                    console.log(`Sent MQTT command: ${device} = ${state}`);
+                    console.log(`Sent MQTT command to ${message.destinationName}: ${device} = ${state}`);
                 });
             });
             
@@ -1438,14 +1666,18 @@
                 const isAuto = this.checked;
                 updateModeDescription(isAuto);
                 
+                // Prepare MQTT message with API key
+                const messageData = {
+                    auto: isAuto,
+                    apikey: currentAPIKey
+                };
+                
                 // Send MQTT command
-                const message = new Paho.MQTT.Message(JSON.stringify({
-                    auto: isAuto
-                }));
-                message.destinationName = "vquail/control/devices";
+                const message = new Paho.MQTT.Message(JSON.stringify(messageData));
+                message.destinationName = currentAPIKey ? "vquail/secure/control" : "vquail/control/devices";
                 mqttClient.send(message);
                 
-                console.log(`Sent MQTT command: auto mode = ${isAuto}`);
+                console.log(`Sent MQTT command to ${message.destinationName}: auto mode = ${isAuto}`);
             });
         }
         
@@ -1453,6 +1685,31 @@
             const now = new Date();
             const timeString = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
             document.getElementById('currentTime').textContent = timeString;
+        }
+        
+        function showNotification(message) {
+            // Check if browser supports notifications
+            if (!("Notification" in window)) {
+                return;
+            }
+            
+            // Check if permission is already granted
+            if (Notification.permission === "granted") {
+                new Notification("VQuail System", {
+                    body: message,
+                    icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iIzI3Y2U2MCIgZD0iTTEyLDIyQzE3LjUyLDIyIDIyLDE3LjUyIDIyLDEyQzIyLDYuNDggMTcuNTIsMiAxMiwyQzYuNDgsMiAyLDYuNDggMiwxMkMyLDE3LjUyIDYuNDgsMjIgMTIsMjJNMTIsNEMxNi40MSw0IDIwLDcuNTkgMjAsMTJDMjAsMTYuNDEgMTYuNDEsMjAgMTIsMjBDNy41OSwyMCA0LDE2LjQxIDQsMTJDNCw3LjU5IDcuNTksNCAxMiw0TTE0LjU5LDhLODk5QzE0LjIyLDguNiAxNCw5LjI4IDE0LDEwSDEwQzEwLDguOSAxMC45LDggMTIsOFMxNCw4LjkgMTQsMTBIMTQuMDhDMTQuMDMsOS42NyAxNCw5LjM0IDE0LDlDMTQsOC40NSAxNC4xOCw4IDE0LjU5LDhNMTYsMTVWNkgxMlYxNUgxNk0xNiwxOEgxMlYxNkgxNlYxOEoiLz48L3N2Zz4="
+                });
+            } else if (Notification.permission !== "denied") {
+                // Request permission
+                Notification.requestPermission().then(function(permission) {
+                    if (permission === "granted") {
+                        new Notification("VQuail System", {
+                            body: message,
+                            icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iIzI3Y2U2MCIgZD0iTTEyLDIyQzE3LjUyLDIyIDIyLDE3LjUyIDIyLDEyQzIyLDYuNDggMTcuNTIsMiAxMiwyQzYuNDgsMiAyLDYuNDggMiwxMkMyLDE3LjUyIDYuNDgsMjIgMTIsMjJNMTIsNEMxNi40MSw0IDIwLDcuNTkgMjAsMTJDMjAsMTYuNDEgMTYuNDEsMjAgMTIsMjBDNy41OSwyMCA0LDE2LjQxIDQsMTJDNCw3LjU5IDcuNTksNCAxMiw0TTE0LjU5LDhLODk5QzE0LjIyLDguNiAxNCw5LjI4IDE0LDEwSDEwQzEwLDguOSAxMC45LDggMTIsOFMxNCw4LjkgMTQsMTBIMTQuMDhDMTQuMDMsOS42NyAxNCw5LjM0IDE0LDlDMTQsOC40NSAxNC4xOCw4IDE0LjU5LDhNMTYsMTVWNkgxMlYxNUgxNk0xNiwxOEgxMlYxNkgxNlYxOEoiLz48L3N2Zz4="
+                        });
+                    }
+                });
+            }
         }
     </script>
 </body>
