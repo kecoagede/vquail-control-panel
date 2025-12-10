@@ -8,35 +8,51 @@
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <style>
         :root {
-            --primary: #07FF;
-            --success: #07E0;
-            --warning: #FD20;
-            --danger: #F800;
-            --info: #7D7C;
-            --accent: #07FF;
-            --dark: #0841;
-            --card-bg: #18C3;
-            --text: #FFFF;
-            --text-dim: #8C51;
-            --bg: #0841;
-            --brood1: #F9A6;
-            --brood2: #FD20;
-            --grower: #2F6B;
-            --adult: #4AFF;
+            /* Modern Color Palette */
+            --primary: #4361ee;
+            --primary-light: #4895ef;
+            --primary-dark: #3a0ca3;
+            --secondary: #7209b7;
+            --success: #4cc9f0;
+            --success-dark: #2a9d8f;
+            --warning: #f8961e;
+            --danger: #f72585;
+            --danger-dark: #d00000;
+            --info: #7209b7;
+            --dark: #14213d;
+            --darker: #0d1b2a;
+            --light: #f8f9fa;
+            --gray: #6c757d;
+            --gray-light: #e9ecef;
+            --card-bg: #ffffff;
+            --card-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+            --card-radius: 16px;
+            
+            /* Stage Colors */
+            --brood1: #ff6b6b;
+            --brood2: #ff9e6d;
+            --grower: #4ecdc4;
+            --adult: #45b7d1;
+            
+            /* Status Colors */
+            --online: #2ecc71;
+            --offline: #e74c3c;
+            --idle: #95a5a6;
         }
         
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Segoe UI', 'Arial', sans-serif;
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
         }
         
         body {
-            background: var(--bg);
-            color: var(--text);
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: var(--dark);
             min-height: 100vh;
             padding: 20px;
+            line-height: 1.6;
         }
         
         .container {
@@ -44,26 +60,55 @@
             margin: 0 auto;
         }
         
+        /* Header Styles */
         header {
-            background: var(--card-bg);
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border-radius: var(--card-radius);
+            padding: 25px 30px;
+            margin-bottom: 25px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            box-shadow: var(--card-shadow);
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--success) 0%, var(--warning) 50%, var(--danger) 100%);
         }
         
         .header-left h1 {
-            font-size: 2rem;
-            margin-bottom: 5px;
-            color: var(--accent);
+            font-size: 2.2rem;
+            margin-bottom: 8px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .header-left h1 i {
+            background: rgba(255, 255, 255, 0.2);
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
         }
         
         .header-left .subtitle {
-            color: var(--text-dim);
-            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 1rem;
+            font-weight: 400;
         }
         
         .header-right {
@@ -71,361 +116,553 @@
         }
         
         .time-display {
-            font-size: 1.2rem;
-            color: var(--text);
+            font-size: 1.8rem;
+            font-weight: 600;
             margin-bottom: 5px;
+            font-family: 'JetBrains Mono', monospace;
         }
         
         .date-display {
-            font-size: 0.9rem;
-            color: var(--text-dim);
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.85);
+            margin-bottom: 15px;
         }
         
         .status-indicators {
             display: flex;
-            gap: 10px;
-            margin-top: 10px;
+            gap: 12px;
             justify-content: flex-end;
         }
         
         .status-dot {
-            width: 12px;
-            height: 12px;
+            width: 14px;
+            height: 14px;
             border-radius: 50%;
-            background: var(--danger);
+            background: var(--offline);
+            position: relative;
+            box-shadow: 0 0 10px rgba(231, 76, 60, 0.3);
+            transition: all 0.3s ease;
         }
         
         .status-dot.online {
-            background: var(--success);
-        }
-        
-        .alarm-banner {
-            background: var(--danger);
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: none;
-            align-items: center;
-            gap: 10px;
+            background: var(--online);
+            box-shadow: 0 0 10px rgba(46, 204, 113, 0.4);
             animation: pulse 2s infinite;
         }
         
-        .alarm-banner.warning {
-            background: var(--warning);
+        .status-dot::after {
+            content: '';
+            position: absolute;
+            top: -3px;
+            left: -3px;
+            right: -3px;
+            bottom: -3px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .status-dot.online::after {
+            border-color: var(--online);
         }
         
         @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.7; }
-            100% { opacity: 1; }
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
         }
         
+        /* Navigation */
         .navigation {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 5px;
-            margin-bottom: 20px;
+            gap: 8px;
+            margin-bottom: 25px;
             background: var(--card-bg);
-            border-radius: 10px;
-            padding: 5px;
+            border-radius: var(--card-radius);
+            padding: 8px;
+            box-shadow: var(--card-shadow);
         }
         
         .nav-btn {
-            padding: 15px 10px;
+            padding: 18px 10px;
             background: transparent;
             border: none;
-            color: var(--text-dim);
-            font-size: 1.2rem;
+            color: var(--gray);
+            font-size: 1.1rem;
             cursor: pointer;
-            border-radius: 8px;
-            transition: all 0.3s;
+            border-radius: 12px;
+            transition: all 0.3s ease;
             text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+        }
+        
+        .nav-btn i {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
         }
         
         .nav-btn.active {
-            background: var(--bg);
-            color: var(--accent);
-            font-weight: bold;
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
+            transform: translateY(-2px);
         }
         
         .nav-btn:hover:not(.active) {
-            background: rgba(255,255,255,0.1);
+            background: var(--gray-light);
+            color: var(--primary);
+            transform: translateY(-1px);
         }
         
+        /* Screen Management */
         .screen {
             display: none;
+            animation: fadeIn 0.5s ease;
         }
         
         .screen.active {
             display: block;
         }
         
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Card Grid */
         .card-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 20px;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
         }
         
         .card {
             background: var(--card-bg);
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-radius: var(--card-radius);
+            padding: 25px;
+            box-shadow: var(--card-shadow);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
         }
         
         .card-title {
-            font-size: 1.1rem;
-            color: var(--text-dim);
-            margin-bottom: 15px;
+            font-size: 1.2rem;
+            color: var(--primary-dark);
+            margin-bottom: 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            font-weight: 600;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--gray-light);
         }
         
         .card-title i {
-            font-size: 1.3rem;
+            color: var(--primary);
+            font-size: 1.4rem;
         }
         
+        /* Sensor Cards */
         .sensor-card {
             text-align: center;
+            position: relative;
         }
         
         .sensor-value {
-            font-size: 3rem;
-            font-weight: bold;
-            margin: 10px 0;
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin: 15px 0;
+            font-family: 'JetBrains Mono', monospace;
+            transition: color 0.3s ease;
         }
         
-        .temp-value.online { color: var(--success); }
-        .temp-value.offline { color: var(--text-dim); }
-        .temp-value.alarm-low { color: var(--danger); }
-        .temp-value.alarm-high { color: var(--warning); }
+        .temp-value.online { color: var(--danger); }
+        .temp-value.offline { color: var(--idle); }
+        .temp-value.alarm-low { 
+            color: var(--danger-dark);
+            animation: alert 1s infinite alternate;
+        }
+        .temp-value.alarm-high { 
+            color: var(--warning);
+            animation: alert 1s infinite alternate;
+        }
         
         .hum-value.online { color: var(--info); }
-        .hum-value.offline { color: var(--text-dim); }
-        .hum-value.alarm-low { color: var(--danger); }
-        .hum-value.alarm-high { color: var(--warning); }
+        .hum-value.offline { color: var(--idle); }
+        .hum-value.alarm-low, 
+        .hum-value.alarm-high { 
+            color: var(--warning);
+            animation: alert 1s infinite alternate;
+        }
+        
+        @keyframes alert {
+            from { opacity: 1; }
+            to { opacity: 0.7; }
+        }
         
         .sensor-unit {
-            font-size: 1.2rem;
-            color: var(--text-dim);
+            font-size: 1.3rem;
+            color: var(--gray);
+            font-weight: 500;
         }
         
         .sensor-status {
-            display: inline-block;
-            padding: 5px 15px;
-            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 20px;
+            border-radius: 25px;
             font-size: 0.9rem;
             font-weight: 600;
-            margin-top: 10px;
+            margin-top: 15px;
+            transition: all 0.3s ease;
         }
         
         .sensor-status.online {
-            background: rgba(0, 255, 0, 0.2);
-            color: var(--success);
+            background: rgba(46, 204, 113, 0.1);
+            color: var(--online);
+            border: 1px solid rgba(46, 204, 113, 0.3);
         }
         
         .sensor-status.offline {
-            background: rgba(255, 0, 0, 0.2);
-            color: var(--danger);
+            background: rgba(231, 76, 60, 0.1);
+            color: var(--offline);
+            border: 1px solid rgba(231, 76, 60, 0.3);
         }
         
+        .last-update {
+            font-size: 0.85rem;
+            color: var(--gray);
+            margin-top: 12px;
+            font-style: italic;
+        }
+        
+        /* Control Panel */
         .control-panel {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
+            gap: 20px;
         }
         
         .control-card {
             background: var(--card-bg);
-            border-radius: 10px;
-            padding: 20px;
+            border-radius: 14px;
+            padding: 25px;
             text-align: center;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.3s ease;
             border: 2px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .control-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--gray-light);
+            transition: all 0.3s ease;
         }
         
         .control-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+            transform: translateY(-5px);
+            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.1);
         }
         
         .control-card.active {
-            border-color: var(--text);
+            border-color: var(--primary);
+            box-shadow: 0 8px 20px rgba(67, 97, 238, 0.15);
         }
         
         .control-card.fan-on {
-            background: var(--success);
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+        }
+        
+        .control-card.fan-on::before {
+            background: var(--success-dark);
         }
         
         .control-card.fan-off {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+        }
+        
+        .control-card.fan-off::before {
             background: var(--danger);
         }
         
         .control-card.heat-on {
+            background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%);
+        }
+        
+        .control-card.heat-on::before {
             background: var(--warning);
         }
         
         .control-card.heat-off {
-            background: #f97316;
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+        }
+        
+        .control-card.heat-off::before {
+            background: var(--idle);
         }
         
         .control-icon {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: var(--dark);
         }
         
         .control-label {
-            font-size: 1.2rem;
-            font-weight: bold;
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--dark);
         }
         
+        .control-value {
+            font-size: 1.1rem;
+            font-weight: 500;
+            padding: 6px 15px;
+            border-radius: 20px;
+            display: inline-block;
+        }
+        
+        .control-card.fan-on .control-value,
+        .control-card.heat-on .control-value {
+            background: rgba(255, 255, 255, 0.3);
+            color: var(--dark);
+        }
+        
+        /* Mode Selector */
         .mode-selector {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            margin: 20px 0;
+            gap: 15px;
+            margin: 25px 0;
         }
         
         .mode-btn {
-            padding: 15px;
+            padding: 18px;
             border: none;
-            border-radius: 8px;
+            border-radius: 12px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.3s ease;
             font-size: 1.1rem;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
         }
         
         .mode-btn.auto {
-            background: var(--accent);
-            color: var(--bg);
+            background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
+            color: white;
         }
         
         .mode-btn.manual {
-            background: var(--warning);
+            background: linear-gradient(135deg, var(--secondary) 0%, #5a189a 100%);
             color: white;
         }
         
         .mode-btn.active {
-            box-shadow: 0 0 0 2px var(--text);
+            box-shadow: 0 0 0 3px white, 0 0 0 6px var(--primary);
+            transform: scale(1.02);
         }
         
+        .mode-btn:hover:not(.active) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Quick Actions */
         .quick-actions {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-top: 20px;
+            gap: 15px;
+            margin-top: 25px;
         }
         
         .quick-btn {
-            padding: 15px;
-            background: var(--primary);
+            padding: 18px 10px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 12px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.95rem;
         }
         
         .quick-btn:hover {
-            opacity: 0.9;
-            transform: translateY(-2px);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(67, 97, 238, 0.2);
         }
         
+        .quick-btn:active {
+            transform: translateY(-1px);
+        }
+        
+        /* Stage Selector */
         .stage-selector {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            margin: 20px 0;
+            gap: 15px;
+            margin: 25px 0;
         }
         
         .stage-btn {
-            padding: 20px 10px;
+            padding: 22px 10px;
             border: none;
-            border-radius: 8px;
+            border-radius: 12px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.3s ease;
             color: white;
+            font-size: 1.1rem;
+            position: relative;
+            overflow: hidden;
         }
         
-        .stage-btn.brood1 { background: var(--brood1); }
-        .stage-btn.brood2 { background: var(--brood2); }
-        .stage-btn.grower { background: var(--grower); }
-        .stage-btn.adult { background: var(--adult); }
+        .stage-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.1);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .stage-btn:hover::before {
+            opacity: 1;
+        }
+        
+        .stage-btn.brood1 { 
+            background: linear-gradient(135deg, var(--brood1) 0%, #ff8e8e 100%);
+        }
+        
+        .stage-btn.brood2 { 
+            background: linear-gradient(135deg, var(--brood2) 0%, #ffb88e 100%);
+        }
+        
+        .stage-btn.grower { 
+            background: linear-gradient(135deg, var(--grower) 0%, #88d3ce 100%);
+        }
+        
+        .stage-btn.adult { 
+            background: linear-gradient(135deg, var(--adult) 0%, #6ec6e0 100%);
+        }
         
         .stage-btn.active {
-            box-shadow: 0 0 0 3px white;
+            box-shadow: 0 0 0 3px white, 0 0 0 6px currentColor;
+            transform: scale(1.02);
         }
         
+        /* Calibration Controls */
         .calibration-control {
             display: grid;
             grid-template-columns: 1fr auto auto;
-            gap: 10px;
+            gap: 15px;
             align-items: center;
-            margin: 15px 0;
-            padding: 15px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 8px;
+            margin: 20px 0;
+            padding: 20px;
+            background: var(--gray-light);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .calibration-control:hover {
+            background: #e2e6ea;
         }
         
         .cal-label {
-            color: var(--text-dim);
+            color: var(--dark);
+            font-weight: 500;
+            font-size: 1.1rem;
         }
         
         .cal-value {
-            font-size: 1.3rem;
-            font-weight: bold;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-dark);
+            font-family: 'JetBrains Mono', monospace;
         }
         
         .cal-btns {
             display: flex;
-            gap: 5px;
+            gap: 8px;
         }
         
         .cal-btn {
-            width: 40px;
-            height: 40px;
+            width: 45px;
+            height: 45px;
             border: none;
-            border-radius: 5px;
-            font-size: 1.2rem;
+            border-radius: 10px;
+            font-size: 1.3rem;
             font-weight: bold;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: all 0.2s ease;
+        }
+        
+        .cal-btn:hover {
+            transform: scale(1.1);
+        }
+        
+        .cal-btn:active {
+            transform: scale(0.95);
         }
         
         .cal-minus {
-            background: var(--danger);
+            background: linear-gradient(135deg, var(--danger) 0%, var(--danger-dark) 100%);
             color: white;
         }
         
         .cal-plus {
-            background: var(--success);
+            background: linear-gradient(135deg, var(--success) 0%, var(--success-dark) 100%);
             color: white;
         }
         
-        .cal-btn:hover {
-            opacity: 0.9;
-        }
-        
+        /* Age Control */
         .age-control {
             display: grid;
             grid-template-columns: 1fr auto auto;
-            gap: 10px;
+            gap: 15px;
             align-items: center;
-            margin: 20px 0;
-            padding: 15px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 8px;
+            margin: 25px 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+            border-radius: 12px;
+            border: 2px solid var(--primary-light);
         }
         
+        /* Info Grid */
         .info-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -433,119 +670,162 @@
         }
         
         .info-item {
-            background: rgba(255,255,255,0.1);
-            padding: 15px;
-            border-radius: 8px;
+            background: var(--gray-light);
+            padding: 18px;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .info-item:hover {
+            background: #e2e6ea;
+            transform: translateY(-2px);
         }
         
         .info-label {
             font-size: 0.9rem;
-            color: var(--text-dim);
-            margin-bottom: 5px;
+            color: var(--gray);
+            margin-bottom: 8px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .info-value {
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: var(--text);
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--dark);
+            font-family: 'JetBrains Mono', monospace;
         }
         
         .info-value.online {
-            color: var(--success);
+            color: var(--online);
         }
         
         .info-value.offline {
-            color: var(--danger);
+            color: var(--offline);
         }
         
         .info-value.warning {
             color: var(--warning);
         }
         
+        /* Control Channel Display */
         .control-channel-display {
-            padding: 15px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 8px;
-            margin-top: 20px;
-            border-left: 4px solid var(--accent);
+            padding: 20px;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-radius: 12px;
+            margin-top: 25px;
+            border-left: 5px solid var(--primary);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .control-channel-display::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
         }
         
         .channel-label {
             font-size: 0.9rem;
-            color: var(--text-dim);
+            color: var(--gray);
+            margin-bottom: 5px;
+            font-weight: 500;
         }
         
         .channel-value {
-            font-size: 1.3rem;
-            font-weight: bold;
+            font-size: 1.5rem;
+            font-weight: 700;
             margin-top: 5px;
         }
         
-        .channel-web { color: var(--warning); border-left-color: var(--warning); }
-        .channel-tft { color: var(--success); border-left-color: var(--success); }
-        .channel-auto { color: var(--info); border-left-color: var(--info); }
+        .channel-web { color: var(--warning); }
+        .channel-tft { color: var(--online); }
+        .channel-auto { color: var(--primary); }
         
+        /* Action Buttons */
         .action-buttons {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-top: 20px;
+            gap: 15px;
+            margin-top: 25px;
         }
         
         .action-btn {
-            padding: 15px;
+            padding: 18px 10px;
             border: none;
-            border-radius: 8px;
+            border-radius: 12px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            color: white;
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
         }
         
         .btn-save {
-            background: var(--success);
-            color: white;
+            background: linear-gradient(135deg, var(--success) 0%, var(--success-dark) 100%);
         }
         
         .btn-reboot {
-            background: var(--warning);
-            color: white;
+            background: linear-gradient(135deg, var(--warning) 0%, #e76f51 100%);
         }
         
         .btn-default {
-            background: var(--danger);
-            color: white;
+            background: linear-gradient(135deg, var(--danger) 0%, var(--danger-dark) 100%);
         }
         
+        /* Footer */
         footer {
             text-align: center;
             margin-top: 30px;
-            padding: 20px;
-            color: var(--text-dim);
+            padding: 25px;
+            color: var(--gray);
             font-size: 0.9rem;
-            border-top: 1px solid rgba(255,255,255,0.1);
+            background: var(--card-bg);
+            border-radius: var(--card-radius);
+            box-shadow: var(--card-shadow);
         }
         
         .connection-status {
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-top: 10px;
+            gap: 15px;
+            margin-top: 15px;
+            justify-content: center;
         }
         
+        /* Toast Notifications */
         .toast {
             position: fixed;
-            bottom: 20px;
-            right: 20px;
-            padding: 15px 20px;
+            bottom: 30px;
+            right: 30px;
+            padding: 18px 25px;
             background: var(--dark);
             color: white;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             transform: translateY(100px);
             opacity: 0;
-            transition: all 0.3s;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             z-index: 1000;
-            max-width: 300px;
+            max-width: 350px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 500;
         }
         
         .toast.show {
@@ -553,11 +833,75 @@
             opacity: 1;
         }
         
-        .toast.success { background: var(--success); }
-        .toast.error { background: var(--danger); }
-        .toast.warning { background: var(--warning); }
-        .toast.info { background: var(--info); }
+        .toast.success { 
+            background: linear-gradient(135deg, var(--online) 0%, #27ae60 100%);
+            border-left: 5px solid #27ae60;
+        }
         
+        .toast.error { 
+            background: linear-gradient(135deg, var(--offline) 0%, #c0392b 100%);
+            border-left: 5px solid #c0392b;
+        }
+        
+        .toast.warning { 
+            background: linear-gradient(135deg, var(--warning) 0%, #e67e22 100%);
+            border-left: 5px solid #e67e22;
+        }
+        
+        .toast.info { 
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border-left: 5px solid var(--primary-dark);
+        }
+        
+        /* System Info */
+        .system-uptime {
+            font-size: 0.95rem;
+            color: var(--gray);
+            margin-top: 15px;
+            padding: 12px;
+            background: var(--gray-light);
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .version-info {
+            font-size: 0.85rem;
+            color: var(--gray);
+            margin-top: 10px;
+            font-style: italic;
+        }
+        
+        /* Alarm Banner */
+        .alarm-banner {
+            background: linear-gradient(135deg, var(--danger) 0%, var(--danger-dark) 100%);
+            color: white;
+            padding: 18px 25px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            display: none;
+            align-items: center;
+            gap: 15px;
+            animation: alert-banner 1.5s infinite alternate;
+            box-shadow: 0 5px 20px rgba(247, 37, 133, 0.3);
+        }
+        
+        .alarm-banner.warning {
+            background: linear-gradient(135deg, var(--warning) 0%, #e67e22 100%);
+            animation: alert-banner-warning 1.5s infinite alternate;
+            box-shadow: 0 5px 20px rgba(248, 150, 30, 0.3);
+        }
+        
+        @keyframes alert-banner {
+            0% { box-shadow: 0 5px 20px rgba(247, 37, 133, 0.3); }
+            100% { box-shadow: 0 5px 30px rgba(247, 37, 133, 0.6); }
+        }
+        
+        @keyframes alert-banner-warning {
+            0% { box-shadow: 0 5px 20px rgba(248, 150, 30, 0.3); }
+            100% { box-shadow: 0 5px 30px rgba(248, 150, 30, 0.6); }
+        }
+        
+        /* Responsive Design */
         @media (max-width: 768px) {
             .card-grid {
                 grid-template-columns: 1fr;
@@ -579,28 +923,80 @@
                 grid-template-columns: 1fr;
             }
             
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            header {
+                flex-direction: column;
+                text-align: center;
+                gap: 20px;
+            }
+            
+            .header-right {
+                text-align: center;
+            }
+            
+            .status-indicators {
+                justify-content: center;
+            }
+            
+            .navigation {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .calibration-control,
+            .age-control {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+            
+            .cal-btns {
+                justify-content: center;
+            }
+            
             h1 {
-                font-size: 1.5rem;
+                font-size: 1.8rem;
             }
         }
         
-        .last-update {
-            font-size: 0.8rem;
-            color: var(--text-dim);
-            margin-top: 10px;
-            text-align: center;
-        }
-        
-        .system-uptime {
+        /* Connection Status Badges */
+        .connection-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 15px;
+            border-radius: 20px;
             font-size: 0.9rem;
-            color: var(--text-dim);
-            margin-top: 10px;
+            font-weight: 500;
+            margin: 5px;
         }
         
-        .version-info {
-            font-size: 0.8rem;
-            color: var(--text-dim);
-            margin-top: 5px;
+        .badge-online {
+            background: rgba(46, 204, 113, 0.15);
+            color: var(--online);
+            border: 1px solid rgba(46, 204, 113, 0.3);
+        }
+        
+        .badge-offline {
+            background: rgba(231, 76, 60, 0.15);
+            color: var(--offline);
+            border: 1px solid rgba(231, 76, 60, 0.3);
+        }
+        
+        /* Loading Animation */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(67, 97, 238, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -610,19 +1006,19 @@
         <header>
             <div class="header-left">
                 <h1><i class="fas fa-feather-alt"></i> VQuail Control</h1>
-                <div class="subtitle">Dual Channel Control System</div>
+                <div class="subtitle">Dual Channel Control System • Real-time Monitoring</div>
                 <div class="control-channel-display">
                     <div class="channel-label">Control Channel</div>
-                    <div class="channel-value" id="controlChannelValue">AUTO</div>
+                    <div class="channel-value channel-auto" id="controlChannelValue">AUTO</div>
                 </div>
             </div>
             <div class="header-right">
                 <div class="time-display" id="currentTime">--:--:--</div>
                 <div class="date-display" id="currentDate">----/--/--</div>
                 <div class="status-indicators">
-                    <div class="status-dot" id="wifiStatus"></div>
-                    <div class="status-dot" id="mqttStatus"></div>
-                    <div class="status-dot" id="sensorStatusDot"></div>
+                    <div class="status-dot" id="wifiStatus" title="WiFi Status"></div>
+                    <div class="status-dot" id="mqttStatus" title="MQTT Status"></div>
+                    <div class="status-dot" id="sensorStatusDot" title="Sensor Status"></div>
                 </div>
             </div>
         </header>
@@ -636,19 +1032,19 @@
         <!-- Navigation -->
         <div class="navigation">
             <button class="nav-btn active" data-screen="home">
-                <i class="fas fa-home"></i><br>
+                <i class="fas fa-home"></i>
                 <span>Home</span>
             </button>
             <button class="nav-btn" data-screen="control">
-                <i class="fas fa-sliders-h"></i><br>
+                <i class="fas fa-sliders-h"></i>
                 <span>Control</span>
             </button>
             <button class="nav-btn" data-screen="settings">
-                <i class="fas fa-cog"></i><br>
+                <i class="fas fa-cogs"></i>
                 <span>Settings</span>
             </button>
             <button class="nav-btn" data-screen="info">
-                <i class="fas fa-info-circle"></i><br>
+                <i class="fas fa-info-circle"></i>
                 <span>Info</span>
             </button>
         </div>
@@ -662,9 +1058,11 @@
                         <span><i class="fas fa-thermometer-half"></i> Temperature</span>
                         <span class="sensor-unit">°C</span>
                     </div>
-                    <div class="sensor-value temp-value" id="temperatureValue">--.-</div>
-                    <div class="last-update" id="tempUpdate">--:--:--</div>
-                    <div class="sensor-status offline" id="tempStatus">OFFLINE</div>
+                    <div class="sensor-value temp-value offline" id="temperatureValue">--.-</div>
+                    <div class="last-update" id="tempUpdate">Last update: --:--:--</div>
+                    <div class="sensor-status offline" id="tempStatus">
+                        <i class="fas fa-circle"></i> OFFLINE
+                    </div>
                 </div>
                 
                 <!-- Humidity Card -->
@@ -673,9 +1071,11 @@
                         <span><i class="fas fa-tint"></i> Humidity</span>
                         <span class="sensor-unit">%</span>
                     </div>
-                    <div class="sensor-value hum-value" id="humidityValue">--.-</div>
-                    <div class="last-update" id="humUpdate">--:--:--</div>
-                    <div class="sensor-status offline" id="humStatus">OFFLINE</div>
+                    <div class="sensor-value hum-value offline" id="humidityValue">--.-</div>
+                    <div class="last-update" id="humUpdate">Last update: --:--:--</div>
+                    <div class="sensor-status offline" id="humStatus">
+                        <i class="fas fa-circle"></i> OFFLINE
+                    </div>
                 </div>
                 
                 <!-- Device Status Card -->
@@ -706,11 +1106,11 @@
                 <!-- System Info Card -->
                 <div class="card">
                     <div class="card-title">
-                        <i class="fas fa-info-circle"></i> System Info
+                        <i class="fas fa-info-circle"></i> System Information
                     </div>
                     <div class="info-grid">
                         <div class="info-item">
-                            <div class="info-label">Stage</div>
+                            <div class="info-label">Life Stage</div>
                             <div class="info-value" id="stageInfo">--</div>
                         </div>
                         <div class="info-item">
@@ -718,16 +1118,16 @@
                             <div class="info-value" id="ageInfo">-- days</div>
                         </div>
                         <div class="info-item">
-                            <div class="info-label">Mode</div>
+                            <div class="info-label">Operating Mode</div>
                             <div class="info-value" id="modeInfo">AUTO</div>
                         </div>
                         <div class="info-item">
-                            <div class="info-label">Source</div>
+                            <div class="info-label">Control Source</div>
                             <div class="info-value" id="controlSource">--</div>
                         </div>
                     </div>
                     <div class="system-uptime" id="uptimeInfo">Uptime: --h --m</div>
-                    <div class="version-info">Version: VQUAIL_S3_TFT_V8_DUAL_CHANNEL</div>
+                    <div class="version-info">Version: VQUAIL_DUAL_V1.0</div>
                 </div>
             </div>
         </div>
@@ -758,25 +1158,32 @@
                 </div>
                 
                 <div class="mode-selector">
-                    <button class="mode-btn auto active" id="autoModeBtn" onclick="setMode(true)">AUTO</button>
-                    <button class="mode-btn manual" id="manualModeBtn" onclick="setMode(false)">MANUAL</button>
+                    <button class="mode-btn auto active" id="autoModeBtn" onclick="setMode(true)">
+                        <i class="fas fa-robot"></i> AUTO
+                    </button>
+                    <button class="mode-btn manual" id="manualModeBtn" onclick="setMode(false)">
+                        <i class="fas fa-hand-pointer"></i> MANUAL
+                    </button>
                 </div>
                 
                 <div class="quick-actions">
                     <button class="quick-btn" onclick="controlBoth(true)">
-                        <i class="fas fa-power-on"></i> BOTH ON
+                        <i class="fas fa-power-on"></i>
+                        <span>BOTH ON</span>
                     </button>
                     <button class="quick-btn" onclick="controlBoth(false)">
-                        <i class="fas fa-power-off"></i> BOTH OFF
+                        <i class="fas fa-power-off"></i>
+                        <span>BOTH OFF</span>
                     </button>
                     <button class="quick-btn" onclick="forceAutoMode()">
-                        <i class="fas fa-undo"></i> FORCE AUTO
+                        <i class="fas fa-undo"></i>
+                        <span>FORCE AUTO</span>
                     </button>
                 </div>
                 
                 <div class="control-channel-display">
-                    <div class="channel-label">Current Control</div>
-                    <div class="channel-value" id="currentControlChannel">AUTO</div>
+                    <div class="channel-label">Current Control Channel</div>
+                    <div class="channel-value channel-auto" id="currentControlChannel">AUTO</div>
                 </div>
             </div>
         </div>
@@ -785,14 +1192,26 @@
         <div class="screen" id="settingsScreen">
             <div class="card">
                 <div class="card-title">
-                    <i class="fas fa-cogs"></i> Settings
+                    <i class="fas fa-cogs"></i> System Settings
                 </div>
                 
                 <div class="stage-selector">
-                    <button class="stage-btn brood1" data-stage="0" onclick="setLifeStage(0)">BROOD W1</button>
-                    <button class="stage-btn brood2" data-stage="1" onclick="setLifeStage(1)">BROOD W2</button>
-                    <button class="stage-btn grower" data-stage="2" onclick="setLifeStage(2)">GROWER</button>
-                    <button class="stage-btn adult" data-stage="3" onclick="setLifeStage(3)">ADULT</button>
+                    <button class="stage-btn brood1" data-stage="0" onclick="setLifeStage(0)">
+                        BROOD W1<br>
+                        <small>0-7 days</small>
+                    </button>
+                    <button class="stage-btn brood2" data-stage="1" onclick="setLifeStage(1)">
+                        BROOD W2<br>
+                        <small>8-14 days</small>
+                    </button>
+                    <button class="stage-btn grower" data-stage="2" onclick="setLifeStage(2)">
+                        GROWER<br>
+                        <small>15-42 days</small>
+                    </button>
+                    <button class="stage-btn adult" data-stage="3" onclick="setLifeStage(3)">
+                        ADULT<br>
+                        <small>43+ days</small>
+                    </button>
                 </div>
                 
                 <div class="age-control">
@@ -830,13 +1249,16 @@
                 
                 <div class="action-buttons">
                     <button class="action-btn btn-save" onclick="saveSettings()">
-                        <i class="fas fa-save"></i> SAVE
+                        <i class="fas fa-save"></i>
+                        <span>SAVE</span>
                     </button>
                     <button class="action-btn btn-reboot" onclick="rebootSystem()">
-                        <i class="fas fa-redo"></i> REBOOT
+                        <i class="fas fa-redo"></i>
+                        <span>REBOOT</span>
                     </button>
                     <button class="action-btn btn-default" onclick="resetCalibration()">
-                        <i class="fas fa-undo"></i> DEFAULT
+                        <i class="fas fa-undo"></i>
+                        <span>RESET</span>
                     </button>
                 </div>
             </div>
@@ -852,23 +1274,23 @@
                 <div class="info-grid">
                     <div class="info-item">
                         <div class="info-label">Network Status</div>
-                        <div class="info-value" id="networkStatusInfo">Disconnected</div>
+                        <div class="info-value offline" id="networkStatusInfo">Disconnected</div>
                     </div>
                     <div class="info-item">
-                        <div class="info-label">WiFi RSSI</div>
+                        <div class="info-label">WiFi Signal</div>
                         <div class="info-value" id="wifiRssi">-- dBm</div>
                     </div>
                     <div class="info-item">
-                        <div class="info-label">NTP Sync</div>
-                        <div class="info-value" id="ntpStatus">NO SYNC</div>
+                        <div class="info-label">NTP Time Sync</div>
+                        <div class="info-value offline" id="ntpStatus">NO SYNC</div>
                     </div>
                     <div class="info-item">
-                        <div class="info-label">SD Card</div>
-                        <div class="info-value" id="sdStatus">Not Found</div>
+                        <div class="info-label">SD Card Status</div>
+                        <div class="info-value offline" id="sdStatus">Not Found</div>
                     </div>
                     <div class="info-item">
-                        <div class="info-label">Sensor</div>
-                        <div class="info-value" id="sensorInfo">Offline</div>
+                        <div class="info-label">Sensor Status</div>
+                        <div class="info-value offline" id="sensorInfo">Offline</div>
                     </div>
                     <div class="info-item">
                         <div class="info-label">Control Channel</div>
@@ -876,23 +1298,27 @@
                     </div>
                 </div>
                 
-                <div class="system-uptime" id="detailedUptime">Uptime: -- hours -- minutes</div>
-                <div class="version-info">Version: VQUAIL_S3_TFT_V8_DUAL_CHANNEL</div>
+                <div class="system-uptime" id="detailedUptime">System Uptime: -- hours -- minutes</div>
+                <div class="version-info">Firmware Version: VQUAIL_S3_TFT_V8_DUAL_CHANNEL</div>
                 
                 <div class="connection-status">
-                    <div class="status-dot" id="wifiStatusDetailed"></div>
-                    <span>WiFi</span>
-                    <div class="status-dot" id="mqttStatusDetailed"></div>
-                    <span>MQTT</span>
-                    <div class="status-dot" id="sensorStatusDetailed"></div>
-                    <span>Sensor</span>
+                    <div class="connection-badge badge-offline" id="wifiBadge">
+                        <i class="fas fa-wifi"></i> WiFi
+                    </div>
+                    <div class="connection-badge badge-offline" id="mqttBadge">
+                        <i class="fas fa-satellite-dish"></i> MQTT
+                    </div>
+                    <div class="connection-badge badge-offline" id="sensorBadge">
+                        <i class="fas fa-thermometer"></i> Sensor
+                    </div>
                 </div>
             </div>
         </div>
         
         <footer>
-            <p>VQuail Dual Channel Control System • Powered by HiveMQ Cloud</p>
-            <p id="connectionStatus">Connecting to system...</p>
+            <p><i class="fas fa-feather-alt"></i> VQuail Dual Channel Control System</p>
+            <p>Powered by HiveMQ Cloud • Real-time Web Interface</p>
+            <p id="connectionStatus"><span class="loading"></span> Connecting to system...</p>
         </footer>
         
         <!-- Toast Notifications -->
@@ -912,10 +1338,38 @@
 
         // Life Stages Configuration
         const LIFE_STAGES = [
-            { name: 'Brood W1', color: '#F9A6', minAge: 0, maxAge: 7 },
-            { name: 'Brood W2', color: '#FD20', minAge: 8, maxAge: 14 },
-            { name: 'Grower', color: '#2F6B', minAge: 15, maxAge: 42 },
-            { name: 'Adult', color: '#4AFF', minAge: 43, maxAge: 999 }
+            { 
+                name: 'Brood W1', 
+                color: '#ff6b6b', 
+                minAge: 0, 
+                maxAge: 7,
+                tempRange: { min: 35, max: 37 },
+                humRange: { min: 60, max: 70 }
+            },
+            { 
+                name: 'Brood W2', 
+                color: '#ff9e6d', 
+                minAge: 8, 
+                maxAge: 14,
+                tempRange: { min: 32, max: 35 },
+                humRange: { min: 60, max: 70 }
+            },
+            { 
+                name: 'Grower', 
+                color: '#4ecdc4', 
+                minAge: 15, 
+                maxAge: 42,
+                tempRange: { min: 24, max: 28 },
+                humRange: { min: 55, max: 65 }
+            },
+            { 
+                name: 'Adult', 
+                color: '#45b7d1', 
+                minAge: 43, 
+                maxAge: 999,
+                tempRange: { min: 20, max: 24 },
+                humRange: { min: 50, max: 60 }
+            }
         ];
 
         // State variables
@@ -939,7 +1393,8 @@
             mqtt: false,
             ntp: false,
             sd_ready: false,
-            uptime: 0
+            uptime: 0,
+            wifi_rssi: 0
         };
 
         // Initialize MQTT connection
@@ -947,13 +1402,16 @@
             const protocol = MQTT_CONFIG.useSSL ? 'wss' : 'ws';
             const url = `${protocol}://${MQTT_CONFIG.host}:${MQTT_CONFIG.port}/mqtt`;
             
+            showToast('Connecting to VQuail system...', 'info');
+            
             mqttClient = mqtt.connect(url, {
                 username: MQTT_CONFIG.username,
                 password: MQTT_CONFIG.password,
                 clientId: MQTT_CONFIG.clientId,
                 clean: true,
                 reconnectPeriod: 5000,
-                keepalive: 60
+                keepalive: 60,
+                connectTimeout: 10000
             });
 
             mqttClient.on('connect', () => {
@@ -972,7 +1430,7 @@
                 });
                 
                 // Request initial data
-                publishControl({ refresh: true });
+                setTimeout(() => publishControl({ refresh: true }), 1000);
             });
 
             mqttClient.on('message', (topic, message) => {
@@ -1026,36 +1484,44 @@
                 const tempEl = document.getElementById('temperatureValue');
                 tempEl.textContent = data.temp.toFixed(1);
                 
+                const currentStage = LIFE_STAGES[currentState.stage];
+                const tempRange = currentStage?.tempRange || { min: 20, max: 30 };
+                
                 // Determine temperature color based on status
                 if (!currentState.sensor_online) {
                     tempEl.className = 'sensor-value temp-value offline';
-                } else if (data.temp < (LIFE_STAGES[currentState.stage]?.tempMin || 20) - 5) {
+                } else if (data.temp < tempRange.min - 5) {
                     tempEl.className = 'sensor-value temp-value alarm-low';
-                } else if (data.temp > (LIFE_STAGES[currentState.stage]?.tempMax || 30) + 5) {
+                } else if (data.temp > tempRange.max + 5) {
+                    tempEl.className = 'sensor-value temp-value alarm-high';
+                } else if (data.temp < tempRange.min || data.temp > tempRange.max) {
                     tempEl.className = 'sensor-value temp-value alarm-high';
                 } else {
                     tempEl.className = 'sensor-value temp-value online';
                 }
                 
-                document.getElementById('tempUpdate').textContent = getCurrentTime();
+                document.getElementById('tempUpdate').textContent = 'Last update: ' + getCurrentTime();
             }
             
             if (data.hum !== undefined) {
                 const humEl = document.getElementById('humidityValue');
                 humEl.textContent = data.hum.toFixed(1);
                 
+                const currentStage = LIFE_STAGES[currentState.stage];
+                const humRange = currentStage?.humRange || { min: 50, max: 70 };
+                
                 // Determine humidity color based on status
                 if (!currentState.sensor_online) {
                     humEl.className = 'sensor-value hum-value offline';
-                } else if (data.hum < (LIFE_STAGES[currentState.stage]?.humMin || 50) - 10) {
+                } else if (data.hum < humRange.min - 10 || data.hum > humRange.max + 10) {
                     humEl.className = 'sensor-value hum-value alarm-low';
-                } else if (data.hum > (LIFE_STAGES[currentState.stage]?.humMax || 70) + 10) {
+                } else if (data.hum < humRange.min || data.hum > humRange.max) {
                     humEl.className = 'sensor-value hum-value alarm-high';
                 } else {
                     humEl.className = 'sensor-value hum-value online';
                 }
                 
-                document.getElementById('humUpdate').textContent = getCurrentTime();
+                document.getElementById('humUpdate').textContent = 'Last update: ' + getCurrentTime();
             }
             
             // Update sensor status
@@ -1069,7 +1535,7 @@
                 document.getElementById('sensorStatusDot').classList.add('online');
                 document.getElementById('sensorInfo').textContent = 'Online';
                 document.getElementById('sensorInfo').className = 'info-value online';
-                document.getElementById('sensorStatusDetailed').classList.add('online');
+                document.getElementById('sensorBadge').className = 'connection-badge badge-online';
             } else {
                 tempStatus.textContent = 'OFFLINE';
                 tempStatus.className = 'sensor-status offline';
@@ -1078,7 +1544,7 @@
                 document.getElementById('sensorStatusDot').classList.remove('online');
                 document.getElementById('sensorInfo').textContent = 'Offline';
                 document.getElementById('sensorInfo').className = 'info-value offline';
-                document.getElementById('sensorStatusDetailed').classList.remove('online');
+                document.getElementById('sensorBadge').className = 'connection-badge badge-offline';
             }
         }
 
@@ -1129,12 +1595,12 @@
                     wifiText.textContent = 'ON';
                     wifiText.className = 'info-value online';
                     document.getElementById('wifiStatus').classList.add('online');
-                    document.getElementById('wifiStatusDetailed').classList.add('online');
+                    document.getElementById('wifiBadge').className = 'connection-badge badge-online';
                 } else {
                     wifiText.textContent = 'OFF';
                     wifiText.className = 'info-value offline';
                     document.getElementById('wifiStatus').classList.remove('online');
-                    document.getElementById('wifiStatusDetailed').classList.remove('online');
+                    document.getElementById('wifiBadge').className = 'connection-badge badge-offline';
                 }
             }
             
@@ -1145,12 +1611,12 @@
                     mqttText.textContent = 'ON';
                     mqttText.className = 'info-value online';
                     document.getElementById('mqttStatus').classList.add('online');
-                    document.getElementById('mqttStatusDetailed').classList.add('online');
+                    document.getElementById('mqttBadge').className = 'connection-badge badge-online';
                 } else {
                     mqttText.textContent = 'OFF';
                     mqttText.className = 'info-value offline';
                     document.getElementById('mqttStatus').classList.remove('online');
-                    document.getElementById('mqttStatusDetailed').classList.remove('online');
+                    document.getElementById('mqttBadge').className = 'connection-badge badge-offline';
                 }
             }
             
@@ -1163,7 +1629,7 @@
                     alarmBanner.style.display = 'flex';
                     alarmMessage.textContent = data.alarm;
                     
-                    if (data.alarm.includes('critical') || data.alarm.includes('Extreme')) {
+                    if (data.alarm.includes('critical') || data.alarm.includes('Extreme') || data.alarm.includes('offline')) {
                         alarmBanner.className = 'alarm-banner';
                     } else {
                         alarmBanner.className = 'alarm-banner warning';
@@ -1237,7 +1703,7 @@
                 const hours = Math.floor(data.uptime / 3600);
                 const minutes = Math.floor((data.uptime % 3600) / 60);
                 document.getElementById('uptimeInfo').textContent = `Uptime: ${hours}h ${minutes}m`;
-                document.getElementById('detailedUptime').textContent = `Uptime: ${hours} hours ${minutes} minutes`;
+                document.getElementById('detailedUptime').textContent = `System Uptime: ${hours} hours ${minutes} minutes`;
             }
             
             // Update network info
@@ -1278,21 +1744,15 @@
             channelInfo.textContent = channel;
             
             // Update styling based on channel
-            const channelDisplay = document.querySelector('.control-channel-display');
-            channelDisplay.className = 'control-channel-display';
-            
             if (channel === 'WEB') {
-                channelDisplay.classList.add('channel-web');
                 channelValue.className = 'channel-value channel-web';
                 currentChannel.className = 'channel-value channel-web';
                 channelInfo.className = 'info-value warning';
             } else if (channel === 'TFT') {
-                channelDisplay.classList.add('channel-tft');
                 channelValue.className = 'channel-value channel-tft';
                 currentChannel.className = 'channel-value channel-tft';
                 channelInfo.className = 'info-value online';
             } else {
-                channelDisplay.classList.add('channel-auto');
                 channelValue.className = 'channel-value channel-auto';
                 currentChannel.className = 'channel-value channel-auto';
                 channelInfo.className = 'info-value';
@@ -1370,7 +1830,17 @@
             }
             
             const newAge = currentState.age + delta;
-            if (newAge < 0 || newAge > 999) return;
+            const currentStage = LIFE_STAGES[currentState.stage];
+            
+            if (newAge < 0 || newAge > 999) {
+                showToast('Age out of valid range', 'warning');
+                return;
+            }
+            
+            if (currentStage && (newAge < currentStage.minAge || newAge > currentStage.maxAge)) {
+                showToast(`Age must be between ${currentStage.minAge}-${currentStage.maxAge} days for this stage`, 'warning');
+                return;
+            }
             
             const command = { age: newAge };
             publishControl(command);
@@ -1386,13 +1856,16 @@
             
             const command = {};
             if (type === 'temp') {
-                command.temp_offset = currentState.temp_offset + delta;
+                const newValue = (currentState.temp_offset || 0) + delta;
+                command.temp_offset = newValue;
+                showToast(`Temperature calibration: ${newValue.toFixed(1)}°C`, 'info');
             } else if (type === 'hum') {
-                command.hum_offset = currentState.hum_offset + delta;
+                const newValue = (currentState.hum_offset || 0) + delta;
+                command.hum_offset = newValue;
+                showToast(`Humidity calibration: ${newValue.toFixed(1)}%`, 'info');
             }
             
             publishControl(command);
-            showToast(`${type === 'temp' ? 'Temperature' : 'Humidity'} calibration updated`, 'info');
         }
 
         // Save settings
@@ -1404,7 +1877,7 @@
             
             const command = { save: true };
             publishControl(command);
-            showToast('Settings saved', 'success');
+            showToast('Settings saved successfully', 'success');
         }
 
         // Reboot system
@@ -1414,7 +1887,7 @@
                 return;
             }
             
-            if (confirm('Are you sure you want to reboot the system?')) {
+            if (confirm('Are you sure you want to reboot the VQuail system? This will temporarily interrupt monitoring.')) {
                 const command = { reboot: true };
                 publishControl(command);
                 showToast('System rebooting...', 'warning');
@@ -1428,10 +1901,10 @@
                 return;
             }
             
-            if (confirm('Reset calibration to default values?')) {
+            if (confirm('Reset all calibration values to zero?')) {
                 const command = { reset_calibration: true };
                 publishControl(command);
-                showToast('Calibration reset', 'info');
+                showToast('Calibration reset to default values', 'info');
             }
         }
 
@@ -1465,11 +1938,11 @@
             const networkStatusInfo = document.getElementById('networkStatusInfo');
             
             if (connected) {
-                connectionInfo.textContent = 'Connected to VQuail system';
+                connectionInfo.innerHTML = '<i class="fas fa-check-circle" style="color: var(--online);"></i> Connected to VQuail system';
                 networkStatusInfo.textContent = 'Connected';
                 networkStatusInfo.className = 'info-value online';
             } else {
-                connectionInfo.textContent = 'Disconnected - Retrying...';
+                connectionInfo.innerHTML = '<span class="loading"></span> Connecting to system...';
                 networkStatusInfo.textContent = 'Disconnected';
                 networkStatusInfo.className = 'info-value offline';
             }
@@ -1478,8 +1951,18 @@
         // Show toast notification
         function showToast(message, type = 'info') {
             const toast = document.getElementById('toast');
-            toast.textContent = message;
-            toast.className = 'toast ' + type;
+            const icons = {
+                success: 'fas fa-check-circle',
+                error: 'fas fa-exclamation-circle',
+                warning: 'fas fa-exclamation-triangle',
+                info: 'fas fa-info-circle'
+            };
+            
+            toast.innerHTML = `
+                <i class="${icons[type] || icons.info}"></i>
+                <span>${message}</span>
+            `;
+            toast.className = `toast ${type}`;
             toast.classList.add('show');
             
             setTimeout(() => {
@@ -1501,7 +1984,7 @@
                 minute: '2-digit', 
                 second: '2-digit' 
             });
-            document.getElementById('currentDate').textContent = now.toLocaleDateString();
+            document.getElementById('currentDate').textContent = now.toLocaleDateString('en-CA');
         }
 
         // Switch screen
@@ -1533,14 +2016,11 @@
             });
             
             // Initialize MQTT
-            initMQTT();
+            setTimeout(initMQTT, 1000);
             
             // Update time display every second
             updateTimeDisplay();
             setInterval(updateTimeDisplay, 1000);
-            
-            // Set initial mode buttons
-            updateModeButtons(true);
             
             // Add keyboard shortcuts
             document.addEventListener('keydown', (e) => {
@@ -1577,19 +2057,12 @@
                 }
             });
             
-            // Show connection instructions
+            // Show welcome message
             setTimeout(() => {
                 if (!isConnected) {
-                    showToast('Connecting to VQuail system...', 'warning');
+                    showToast('Initializing connection to VQuail system...', 'info');
                 }
-            }, 2000);
-            
-            // Request initial data
-            setTimeout(() => {
-                if (isConnected) {
-                    publishControl({ refresh: true });
-                }
-            }, 3000);
+            }, 500);
         });
 
         // Handle page visibility change
@@ -1598,7 +2071,7 @@
                 // Try to reconnect if page becomes visible
                 setTimeout(() => {
                     if (!isConnected) {
-                        showToast('Attempting to reconnect...', 'warning');
+                        showToast('Reconnecting to system...', 'warning');
                         initMQTT();
                     }
                 }, 1000);
