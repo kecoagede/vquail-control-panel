@@ -45,13 +45,187 @@
             overflow-x: hidden;
         }
 
+        /* Login Page Styles */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .login-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: var(--border-radius);
+            padding: 50px 40px;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+        }
+
+        .login-logo {
+            margin-bottom: 30px;
+        }
+
+        .login-logo-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--primary), var(--info));
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            color: white;
+            margin: 0 auto 20px;
+            box-shadow: 0 10px 30px rgba(67, 97, 238, 0.4);
+        }
+
+        .login-logo h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, var(--primary), var(--info));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .login-logo p {
+            font-size: 14px;
+            color: var(--gray);
+            font-weight: 300;
+        }
+
+        .login-form {
+            margin-top: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--dark);
+        }
+
+        .input-with-icon {
+            position: relative;
+        }
+
+        .input-with-icon i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--gray);
+            font-size: 18px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 15px 15px 15px 50px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            font-family: 'Inter', sans-serif;
+            transition: var(--transition);
+            background: white;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+        }
+
+        .form-control.error {
+            border-color: var(--danger);
+        }
+
+        .error-message {
+            color: var(--danger);
+            font-size: 13px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: 'Inter', sans-serif;
+            margin-top: 10px;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(67, 97, 238, 0.3);
+        }
+
+        .login-btn:active {
+            transform: translateY(0);
+        }
+
+        .login-footer {
+            margin-top: 25px;
+            font-size: 13px;
+            color: var(--gray);
+        }
+
+        .login-footer a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .login-footer a:hover {
+            text-decoration: underline;
+        }
+
+        .security-info {
+            background: linear-gradient(135deg, rgba(76, 201, 240, 0.1), rgba(114, 9, 183, 0.1));
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 25px;
+            border-left: 4px solid var(--info);
+        }
+
+        .security-info p {
+            font-size: 12px;
+            color: var(--gray);
+            line-height: 1.5;
+        }
+
+        .security-info i {
+            color: var(--info);
+            margin-right: 8px;
+        }
+
+        /* Hide dashboard initially */
         .app-container {
+            display: none;
             max-width: 1600px;
             margin: 0 auto;
             padding: 20px;
         }
 
-        /* Header */
+        /* Dashboard Styles */
         .app-header {
             background: linear-gradient(135deg, var(--dark-light) 0%, var(--dark) 100%);
             color: white;
@@ -735,6 +909,28 @@
             transition: width 0.3s ease;
         }
 
+        /* Logout Button */
+        .logout-btn {
+            background: linear-gradient(135deg, var(--danger), var(--danger-light));
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: var(--transition);
+        }
+
+        .logout-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(247, 37, 133, 0.3);
+        }
+
         /* Responsive */
         @media (max-width: 1400px) {
             .dashboard-grid {
@@ -776,6 +972,10 @@
         }
 
         @media (max-width: 768px) {
+            .login-card {
+                padding: 40px 25px;
+            }
+            
             .app-container {
                 padding: 15px;
             }
@@ -819,10 +1019,68 @@
         ::-webkit-scrollbar-thumb:hover {
             background: linear-gradient(135deg, var(--primary-light), var(--info-light));
         }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
     </style>
 </head>
 <body>
-    <div class="app-container">
+    <!-- Login Page -->
+    <div class="login-container" id="loginContainer">
+        <div class="login-card">
+            <div class="login-logo">
+                <div class="login-logo-icon">
+                    <i class="fas fa-dove"></i>
+                </div>
+                <h1>VQuail Smart Control</h1>
+                <p>Professional Farming Automation System</p>
+            </div>
+            
+            <div class="login-form">
+                <div class="form-group">
+                    <label for="username"><i class="fas fa-user"></i> Username</label>
+                    <div class="input-with-icon">
+                        <i class="fas fa-user-circle"></i>
+                        <input type="text" id="username" class="form-control" placeholder="Enter username" autocomplete="username">
+                    </div>
+                    <div class="error-message" id="usernameError">Please enter a valid username</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password"><i class="fas fa-lock"></i> Password</label>
+                    <div class="input-with-icon">
+                        <i class="fas fa-key"></i>
+                        <input type="password" id="password" class="form-control" placeholder="Enter password" autocomplete="current-password">
+                    </div>
+                    <div class="error-message" id="passwordError">Please enter your password</div>
+                </div>
+                
+                <button class="login-btn" onclick="login()">
+                    <i class="fas fa-sign-in-alt"></i> Sign In
+                </button>
+                
+                <div class="security-info">
+                    <p><i class="fas fa-shield-alt"></i> Secure login required. Use provided credentials to access the control system.</p>
+                </div>
+                
+                <div class="login-footer">
+                    <p>Default credentials: vquail / Vquail12345</p>
+                    <p>For security, change these credentials in production.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Container (Initially Hidden) -->
+    <div class="app-container" id="dashboardContainer">
         <!-- Header -->
         <header class="app-header">
             <div class="brand">
@@ -844,6 +1102,9 @@
                 <div class="action-buttons">
                     <button class="btn btn-primary" onclick="connectMQTT()">
                         <i class="fas fa-plug"></i> Connect
+                    </button>
+                    <button class="logout-btn" onclick="logout()">
+                        <i class="fas fa-sign-out-alt"></i> Logout
                     </button>
                     <button class="btn btn-outline" onclick="toggleTheme()">
                         <i class="fas fa-moon"></i> Theme
@@ -1293,7 +1554,159 @@
     </div>
 
     <script>
-        // ================= CONFIGURATION =================
+        // ================= AUTHENTICATION =================
+        const VALID_CREDENTIALS = {
+            username: 'vquail',
+            password: 'Vquail12345'
+        };
+
+        let isAuthenticated = false;
+
+        function login() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            
+            let hasError = false;
+            
+            // Clear previous errors
+            document.getElementById('usernameError').style.display = 'none';
+            document.getElementById('passwordError').style.display = 'none';
+            document.getElementById('username').classList.remove('error');
+            document.getElementById('password').classList.remove('error');
+            
+            // Validate username
+            if (!username) {
+                document.getElementById('usernameError').textContent = 'Please enter your username';
+                document.getElementById('usernameError').style.display = 'block';
+                document.getElementById('username').classList.add('error');
+                hasError = true;
+            }
+            
+            // Validate password
+            if (!password) {
+                document.getElementById('passwordError').textContent = 'Please enter your password';
+                document.getElementById('passwordError').style.display = 'block';
+                document.getElementById('password').classList.add('error');
+                hasError = true;
+            }
+            
+            if (hasError) return;
+            
+            // Check credentials
+            if (username === VALID_CREDENTIALS.username && password === VALID_CREDENTIALS.password) {
+                // Successful login
+                isAuthenticated = true;
+                showLoginNotification('success', 'Login successful! Redirecting to dashboard...');
+                
+                // Store login state in sessionStorage
+                sessionStorage.setItem('vquail_authenticated', 'true');
+                sessionStorage.setItem('vquail_username', username);
+                
+                // Add login event to log
+                const loginTime = new Date().toLocaleTimeString();
+                console.log(`User ${username} logged in at ${loginTime}`);
+                
+                // Switch to dashboard after delay
+                setTimeout(() => {
+                    document.getElementById('loginContainer').style.display = 'none';
+                    document.getElementById('dashboardContainer').style.display = 'block';
+                    document.getElementById('dashboardContainer').style.animation = 'fadeIn 0.5s ease';
+                    
+                    // Initialize dashboard
+                    initializeDashboard();
+                }, 1500);
+                
+            } else {
+                // Failed login
+                showLoginNotification('error', 'Invalid username or password');
+                document.getElementById('username').classList.add('error');
+                document.getElementById('password').classList.add('error');
+                
+                // Clear password field
+                document.getElementById('password').value = '';
+                
+                // Shake animation for error
+                const loginCard = document.querySelector('.login-card');
+                loginCard.style.animation = 'none';
+                setTimeout(() => {
+                    loginCard.style.animation = 'shake 0.5s';
+                }, 10);
+            }
+        }
+
+        function showLoginNotification(type, message) {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
+                <span>${message}</span>
+            `;
+            
+            // Add to login container
+            document.querySelector('.login-container').appendChild(notification);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                // Disconnect MQTT if connected
+                if (mqttClient && mqttClient.connected) {
+                    disconnectMQTT();
+                }
+                
+                // Clear session storage
+                sessionStorage.removeItem('vquail_authenticated');
+                sessionStorage.removeItem('vquail_username');
+                
+                // Reset authentication state
+                isAuthenticated = false;
+                
+                // Switch back to login page
+                document.getElementById('dashboardContainer').style.display = 'none';
+                document.getElementById('loginContainer').style.display = 'flex';
+                
+                // Clear login form
+                document.getElementById('username').value = '';
+                document.getElementById('password').value = '';
+                
+                // Clear any errors
+                document.getElementById('usernameError').style.display = 'none';
+                document.getElementById('passwordError').style.display = 'none';
+                document.getElementById('username').classList.remove('error');
+                document.getElementById('password').classList.remove('error');
+                
+                // Show logout message
+                showLoginNotification('info', 'You have been logged out successfully.');
+            }
+        }
+
+        function checkSession() {
+            const authenticated = sessionStorage.getItem('vquail_authenticated') === 'true';
+            if (authenticated) {
+                // User is already logged in, show dashboard
+                document.getElementById('loginContainer').style.display = 'none';
+                document.getElementById('dashboardContainer').style.display = 'block';
+                initializeDashboard();
+            }
+        }
+
+        // Add shake animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes shake {
+                0%, 100% { transform: translateX(0); }
+                10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+                20%, 40%, 60%, 80% { transform: translateX(5px); }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // ================= DASHBOARD CONFIGURATION =================
         const HIVEMQ_CONFIG = {
             host: '514ee1c5407448169298c78647ad26b9.s1.eu.hivemq.cloud',
             port: 8884,
@@ -1355,8 +1768,36 @@
             lastSync: '--:--'
         };
 
+        // ================= DASHBOARD INITIALIZATION =================
+        function initializeDashboard() {
+            console.log('VQuail Professional Dashboard initialized');
+            logMessage('Professional Dashboard initialized', 'info');
+            logMessage(`MQTT Broker: ${HIVEMQ_CONFIG.host}:${HIVEMQ_CONFIG.port}`, 'info');
+            
+            // Set client ID display
+            document.getElementById('clientId').textContent = HIVEMQ_CONFIG.clientId;
+            
+            // Auto-connect after 1.5 seconds
+            setTimeout(() => {
+                connectMQTT();
+            }, 1500);
+            
+            // Update performance bar every second
+            setInterval(() => {
+                const uptime = systemState.uptime || 0;
+                const performance = Math.min(uptime / 100, 100); // Scale for display
+                document.getElementById('performanceBar').style.width = performance + '%';
+                document.getElementById('performanceUptime').textContent = formatUptime(uptime);
+            }, 1000);
+        }
+
         // ================= CONNECTION MANAGEMENT =================
         function connectMQTT() {
+            if (!isAuthenticated) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+            
             if (mqttClient && mqttClient.connected) {
                 showNotification('Already connected to MQTT broker', 'info');
                 return;
@@ -1678,6 +2119,11 @@
 
         // ================= CONTROL FUNCTIONS =================
         function controlDevice(device, state) {
+            if (!isAuthenticated) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+            
             if (!isConnected) {
                 showNotification('Not connected to MQTT', 'error');
                 return;
@@ -1710,6 +2156,11 @@
         }
 
         function setMode(auto) {
+            if (!isAuthenticated) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+            
             if (!isConnected) {
                 showNotification('Not connected to MQTT', 'error');
                 return;
@@ -1732,6 +2183,11 @@
         }
 
         function adjustCalibration(type, adjustment) {
+            if (!isAuthenticated) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+            
             if (!isConnected) {
                 showNotification('Not connected to MQTT', 'error');
                 return;
@@ -1748,6 +2204,11 @@
         }
 
         function resetCalibration() {
+            if (!isAuthenticated) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+            
             if (!isConnected) {
                 showNotification('Not connected to MQTT', 'error');
                 return;
@@ -1766,6 +2227,11 @@
         }
 
         function saveCalibration() {
+            if (!isAuthenticated) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+            
             if (!isConnected) {
                 showNotification('Not connected to MQTT', 'error');
                 return;
@@ -1783,6 +2249,11 @@
         }
 
         function autoCalibrate() {
+            if (!isAuthenticated) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+            
             if (!isConnected) {
                 showNotification('Not connected to MQTT', 'error');
                 return;
@@ -1803,6 +2274,11 @@
 
         // ================= SYSTEM COMMANDS =================
         function publishStatus() {
+            if (!isAuthenticated) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+            
             if (!isConnected) {
                 showNotification('Not connected to MQTT', 'error');
                 return;
@@ -1823,6 +2299,11 @@
         }
 
         function sendReboot() {
+            if (!isAuthenticated) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+            
             if (!isConnected) {
                 showNotification('Not connected to MQTT', 'error');
                 return;
@@ -1842,6 +2323,11 @@
         }
 
         function testConnection() {
+            if (!isAuthenticated) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+            
             if (!isConnected) {
                 showNotification('Not connected', 'error');
                 return;
@@ -1859,6 +2345,11 @@
         }
 
         function clearAlarm() {
+            if (!isAuthenticated) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+            
             if (!isConnected) {
                 showNotification('Not connected to MQTT', 'error');
                 return;
@@ -1885,6 +2376,11 @@
         }
 
         function publishMessage(topic, message) {
+            if (!isAuthenticated) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+            
             if (!mqttClient || !isConnected) {
                 showNotification('MQTT not connected', 'error');
                 return;
@@ -2003,32 +2499,28 @@
             updateSystemInfo();
         }
 
-        // ================= INITIALIZATION =================
+        // ================= EVENT LISTENERS =================
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('VQuail Professional Dashboard initialized');
-            logMessage('Professional Dashboard initialized', 'info');
-            logMessage(`MQTT Broker: ${HIVEMQ_CONFIG.host}:${HIVEMQ_CONFIG.port}`, 'info');
+            // Check for saved session
+            checkSession();
             
-            // Set client ID display
-            document.getElementById('clientId').textContent = HIVEMQ_CONFIG.clientId;
+            // Allow pressing Enter to login
+            document.getElementById('password').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    login();
+                }
+            });
             
-            // Auto-connect after 1.5 seconds
-            setTimeout(() => {
-                connectMQTT();
-            }, 1500);
-            
-            // Update performance bar every second
-            setInterval(() => {
-                const uptime = systemState.uptime || 0;
-                const performance = Math.min(uptime / 100, 100); // Scale for display
-                document.getElementById('performanceBar').style.width = performance + '%';
-                document.getElementById('performanceUptime').textContent = formatUptime(uptime);
-            }, 1000);
+            document.getElementById('username').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    login();
+                }
+            });
         });
 
         // Auto-reconnect if disconnected
         setInterval(() => {
-            if (!isConnected && mqttClient && mqttClient.disconnected) {
+            if (isAuthenticated && !isConnected && mqttClient && mqttClient.disconnected) {
                 logMessage('Attempting auto-reconnect...', 'info');
                 connectMQTT();
             }
@@ -2036,7 +2528,7 @@
 
         // Request status every 60 seconds when connected
         setInterval(() => {
-            if (isConnected) {
+            if (isAuthenticated && isConnected) {
                 publishStatus();
             }
         }, 60000);
