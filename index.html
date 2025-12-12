@@ -1,25 +1,1044 @@
-// Test if MQTT is working
-function testMQTT() {
-    console.log("Testing MQTT...");
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VQuail Control Panel</title>
     
-    const client = new Paho.MQTT.Client(
-        "514ee1c5407448169298c78647ad26b9.s1.eu.hivemq.cloud",
-        8883,
-        "test-client-" + Math.random()
-    );
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    client.connect({
-        useSSL: true,
-        userName: "vquail",
-        password: "Vquail12345",
-        onSuccess: () => {
-            console.log("MQTT Test: Connected!");
-            alert("MQTT connection successful!");
-            client.disconnect();
-        },
-        onFailure: (error) => {
-            console.error("MQTT Test Failed:", error);
-            alert("MQTT failed: " + error.errorMessage);
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #27ae60;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --info: #17a2b8;
         }
-    });
-}
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px 0;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            margin-bottom: 20px;
+        }
+        
+        .temperature-display {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .humidity-display {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, #4ecdc4, #44a08d);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .control-btn {
+            padding: 12px 20px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .control-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .mode-indicator {
+            padding: 6px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        
+        .mode-auto {
+            background: rgba(52, 152, 219, 0.2);
+            color: var(--secondary);
+        }
+        
+        .mode-manual {
+            background: rgba(243, 156, 18, 0.2);
+            color: var(--warning);
+        }
+        
+        .channel-badge {
+            padding: 4px 10px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .channel-auto { background: rgba(52, 152, 219, 0.2); color: var(--secondary); }
+        .channel-web { background: rgba(243, 156, 18, 0.2); color: var(--warning); }
+        .channel-tft { background: rgba(39, 174, 96, 0.2); color: var(--success); }
+        
+        #alarmBanner {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        .log-entry {
+            border-left: 4px solid;
+            padding: 8px 12px;
+            margin-bottom: 5px;
+            background: #f8f9fa;
+            border-radius: 0 5px 5px 0;
+        }
+        
+        .log-info { border-color: var(--info); }
+        .log-success { border-color: var(--success); }
+        .log-warning { border-color: var(--warning); }
+        .log-error { border-color: var(--danger); }
+        .log-control { border-color: var(--primary); }
+        
+        .progress {
+            height: 12px;
+            border-radius: 6px;
+        }
+        
+        @media (max-width: 768px) {
+            .temperature-display, .humidity-display {
+                font-size: 2.2rem;
+            }
+            
+            h4 { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="glass-card p-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h1 class="h3 mb-1"><i class="fas fa-dove text-primary me-2"></i> VQuail Control Panel</h1>
+                            <p class="text-muted mb-0">ESP32-S3 Real-time Monitor & Control</p>
+                        </div>
+                        <div class="text-end">
+                            <div id="currentTime" class="h5 mb-1">--:--:--</div>
+                            <div id="currentDate" class="text-muted small">----/--/--</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alarm Banner -->
+        <div id="alarmBanner" class="row mb-4 d-none">
+            <div class="col-12">
+                <div class="alert alert-danger d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong><span id="alarmMessage">Alarm</span></strong>
+                        <span id="alarmSource" class="badge bg-light text-dark ms-2">SOURCE</span>
+                    </div>
+                    <button id="dismissAlarm" class="btn btn-sm btn-light">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sensor Data -->
+        <div class="row mb-4">
+            <div class="col-md-6 mb-4">
+                <div class="glass-card p-4 h-100">
+                    <h4 class="mb-3"><i class="fas fa-thermometer-half text-danger me-2"></i> Temperature</h4>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="temperature-display" id="temperatureValue">--.-</div>
+                        <div>
+                            <span class="badge bg-danger me-2" id="tempStatus">OFFLINE</span>
+                            <small class="text-muted">°C</small>
+                        </div>
+                    </div>
+                    <div class="progress mb-3">
+                        <div id="tempProgress" class="progress-bar bg-danger" style="width: 0%"></div>
+                    </div>
+                    <div class="d-flex justify-content-between small mb-3">
+                        <span>Min: <span id="tempMin">--</span>°C</span>
+                        <span>Current: <span id="tempCurrent">--</span>°C</span>
+                        <span>Max: <span id="tempMax">--</span>°C</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted">Calibration:</span>
+                        <div>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="adjustCalibration('temp', -0.5)">-0.5</button>
+                            <span class="mx-2" id="tempOffset">0.0°C</span>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="adjustCalibration('temp', 0.5)">+0.5</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6 mb-4">
+                <div class="glass-card p-4 h-100">
+                    <h4 class="mb-3"><i class="fas fa-tint text-info me-2"></i> Humidity</h4>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="humidity-display" id="humidityValue">--.-</div>
+                        <div>
+                            <span class="badge bg-info me-2" id="humStatus">OFFLINE</span>
+                            <small class="text-muted">%</small>
+                        </div>
+                    </div>
+                    <div class="progress mb-3">
+                        <div id="humProgress" class="progress-bar bg-info" style="width: 0%"></div>
+                    </div>
+                    <div class="d-flex justify-content-between small mb-3">
+                        <span>Min: <span id="humMin">--</span>%</span>
+                        <span>Current: <span id="humCurrent">--</span>%</span>
+                        <span>Max: <span id="humMax">--</span>%</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted">Calibration:</span>
+                        <div>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="adjustCalibration('hum', -0.5)">-0.5</button>
+                            <span class="mx-2" id="humOffset">0.0%</span>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="adjustCalibration('hum', 0.5)">+0.5</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <div class="glass-card p-4 h-100">
+                    <h4 class="mb-3"><i class="fas fa-gamepad text-warning me-2"></i> Control Panel</h4>
+                    
+                    <!-- Mode Selection -->
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-3">
+                            <div class="d-grid gap-2">
+                                <button id="btnAutoMode" class="btn btn-primary control-btn">
+                                    <i class="fas fa-robot me-2"></i> AUTO Mode
+                                </button>
+                                <button id="btnManualMode" class="btn btn-warning control-btn">
+                                    <i class="fas fa-hand-paper me-2"></i> MANUAL Mode
+                                </button>
+                            </div>
+                            <div class="text-center mt-3">
+                                <span id="currentMode" class="mode-indicator mode-auto">AUTO MODE</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="text-center p-3 bg-light rounded">
+                                <small class="text-muted d-block mb-2">Control Channel</small>
+                                <span id="controlChannel" class="channel-badge channel-auto">AUTO</span>
+                                <div class="mt-2">
+                                    <small class="text-muted" id="controlInstructions">
+                                        In AUTO mode, devices are controlled by sensor readings
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Device Control -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <h5><i class="fas fa-wind me-2"></i> Fan Control</h5>
+                            <div class="d-grid gap-2">
+                                <button id="btnFanOn" class="btn btn-success control-btn" disabled>
+                                    <i class="fas fa-power-on me-2"></i> Turn ON
+                                </button>
+                                <button id="btnFanOff" class="btn btn-outline-secondary control-btn" disabled>
+                                    <i class="fas fa-power-off me-2"></i> Turn OFF
+                                </button>
+                            </div>
+                            <div class="text-center mt-2">
+                                <small>Current: <span id="fanStatus" class="badge bg-secondary">OFF</span></small>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <h5><i class="fas fa-fire me-2"></i> Heat Control</h5>
+                            <div class="d-grid gap-2">
+                                <button id="btnHeatOn" class="btn btn-danger control-btn" disabled>
+                                    <i class="fas fa-power-on me-2"></i> Turn ON
+                                </button>
+                                <button id="btnHeatOff" class="btn btn-outline-secondary control-btn" disabled>
+                                    <i class="fas fa-power-off me-2"></i> Turn OFF
+                                </button>
+                            </div>
+                            <div class="text-center mt-2">
+                                <small>Current: <span id="heatStatus" class="badge bg-secondary">OFF</span></small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Actions -->
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <button id="btnBothOn" class="btn btn-info w-100 control-btn" disabled>
+                                <i class="fas fa-bolt me-2"></i> Turn BOTH ON
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <button id="btnBothOff" class="btn btn-outline-dark w-100 control-btn" disabled>
+                                <i class="fas fa-stop me-2"></i> Turn BOTH OFF
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="glass-card p-4 h-100">
+                    <h4 class="mb-3"><i class="fas fa-heartbeat text-success me-2"></i> System Status</h4>
+                    
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Life Stage:</span>
+                            <span class="fw-bold" id="lifeStage">--</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Age:</span>
+                            <span id="ageDays">-- days</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-3">
+                            <span>Uptime:</span>
+                            <span id="uptime">--</span>
+                        </div>
+                    </div>
+                    
+                    <div class="list-group">
+                        <div class="list-group-item d-flex justify-content-between">
+                            <span><i class="fas fa-wifi me-2"></i> WiFi</span>
+                            <span id="wifiStatus" class="badge bg-secondary">--</span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between">
+                            <span><i class="fas fa-satellite-dish me-2"></i> MQTT</span>
+                            <span id="mqttStatus" class="badge bg-secondary">--</span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between">
+                            <span><i class="fas fa-microchip me-2"></i> Sensor</span>
+                            <span id="sensorStatus" class="badge bg-secondary">--</span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between">
+                            <span><i class="fas fa-sd-card me-2"></i> SD Card</span>
+                            <span id="sdStatus" class="badge bg-secondary">--</span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between">
+                            <span><i class="fas fa-tv me-2"></i> TFT Display</span>
+                            <span id="tftStatus" class="badge bg-secondary">--</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <button class="btn btn-sm btn-outline-primary w-100 mb-2" onclick="forceUpdate()">
+                            <i class="fas fa-sync-alt me-2"></i> Force Refresh
+                        </button>
+                        <button class="btn btn-sm btn-outline-warning w-100 mb-2" onclick="rebootSystem()">
+                            <i class="fas fa-redo me-2"></i> Reboot System
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger w-100" onclick="resetCalibration()">
+                            <i class="fas fa-undo me-2"></i> Reset Calibration
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Log Panel -->
+        <div class="row">
+            <div class="col-12">
+                <div class="glass-card p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="mb-0"><i class="fas fa-history text-info me-2"></i> Activity Log</h4>
+                        <div>
+                            <button class="btn btn-sm btn-outline-secondary me-2" onclick="clearLog()">
+                                <i class="fas fa-trash me-1"></i> Clear
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="exportLog()">
+                                <i class="fas fa-download me-1"></i> Export
+                            </button>
+                        </div>
+                    </div>
+                    <div id="activityLog" style="height: 200px; overflow-y: auto; padding: 10px; background: #f8f9fa; border-radius: 8px;">
+                        <div class="text-center text-muted py-5" id="emptyLog">
+                            <i class="fas fa-comment-slash fa-2x mb-3"></i>
+                            <p>No activity yet</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Connection Status Bar -->
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="glass-card p-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small id="connectionStatus">
+                                <i class="fas fa-circle text-danger me-1"></i> Disconnected
+                            </small>
+                        </div>
+                        <div>
+                            <small class="text-muted me-3" id="lastUpdate">Last update: Never</small>
+                            <small class="text-muted" id="messageCount">Messages: 0</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/paho-mqtt.min.js"></script>
+    
+    <script>
+        // ============ CONFIGURATION ============
+        const CONFIG = {
+            mqtt: {
+                host: "514ee1c5407448169298c78647ad26b9.s1.eu.hivemq.cloud",
+                port: 8883,
+                username: "vquail",
+                password: "Vquail12345",
+                clientId: "vquail-web-" + Math.random().toString(36).substr(2, 9)
+            },
+            topics: {
+                subscribe: [
+                    "vquail/status/device",
+                    "vquail/status/sensors",
+                    "vquail/status/system"
+                ],
+                publish: "vquail/web/control",
+                calibration: "vquail/calibration"
+            },
+            stages: [
+                { name: "Brood W1", tempMin: 35, tempMax: 37, humMin: 60, humMax: 70 },
+                { name: "Brood W2", tempMin: 32, tempMax: 35, humMin: 60, humMax: 70 },
+                { name: "Grower", tempMin: 24, tempMax: 28, humMin: 55, humMax: 65 },
+                { name: "Adult", tempMin: 20, tempMax: 24, humMin: 50, humMax: 60 }
+            ]
+        };
+
+        // ============ STATE VARIABLES ============
+        let mqttClient = null;
+        let isConnected = false;
+        let messageCount = 0;
+        let lastUpdate = null;
+        let activityLog = [];
+        
+        let systemState = {
+            temperature: null,
+            humidity: null,
+            fan: false,
+            heat: false,
+            autoMode: true,
+            stage: "Brood W1",
+            age: 0,
+            sensorOnline: false,
+            sensorDisconnected: false,
+            alarm: null,
+            controlChannel: "AUTO",
+            tempOffset: 0,
+            humOffset: 0,
+            wifi: false,
+            mqtt: false,
+            sdCard: false,
+            tft: false,
+            uptime: "0s"
+        };
+
+        // ============ INITIALIZATION ============
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log("VQuail Control Panel Initializing...");
+            initMQTT();
+            setupEventListeners();
+            updateTime();
+            setInterval(updateTime, 1000);
+            setInterval(checkConnection, 5000);
+        });
+
+        // ============ MQTT FUNCTIONS ============
+        function initMQTT() {
+            console.log("Connecting to MQTT...");
+            console.log("Host:", CONFIG.mqtt.host);
+            console.log("Username:", CONFIG.mqtt.username);
+            
+            mqttClient = new Paho.MQTT.Client(
+                CONFIG.mqtt.host,
+                Number(CONFIG.mqtt.port),
+                CONFIG.mqtt.clientId
+            );
+            
+            mqttClient.onConnectionLost = onConnectionLost;
+            mqttClient.onMessageArrived = onMessageArrived;
+            
+            const options = {
+                useSSL: true,
+                userName: CONFIG.mqtt.username,
+                password: CONFIG.mqtt.password,
+                onSuccess: onConnect,
+                onFailure: onConnectFailure,
+                keepAliveInterval: 30,
+                cleanSession: true,
+                reconnect: true
+            };
+            
+            updateConnectionStatus("Connecting to MQTT...", "warning");
+            
+            try {
+                mqttClient.connect(options);
+            } catch (error) {
+                console.error("MQTT Connection Error:", error);
+                updateConnectionStatus("Connection error: " + error.message, "danger");
+                setTimeout(initMQTT, 5000);
+            }
+        }
+
+        function onConnect() {
+            console.log("MQTT Connected Successfully!");
+            isConnected = true;
+            updateConnectionStatus("Connected to VQuail System", "success");
+            
+            // Subscribe to topics
+            CONFIG.topics.subscribe.forEach(topic => {
+                mqttClient.subscribe(topic, { qos: 1 });
+                console.log("Subscribed to:", topic);
+            });
+            
+            addLogEntry("Connected to MQTT broker", "success");
+            
+            // Request full status update
+            setTimeout(() => {
+                sendToMQTT({ request: "full" }, "vquail/status/request");
+            }, 1000);
+        }
+
+        function onConnectFailure(error) {
+            console.error("MQTT Connection Failed:", error);
+            isConnected = false;
+            updateConnectionStatus("Connection failed: " + error.errorMessage, "danger");
+            addLogEntry("MQTT connection failed: " + error.errorMessage, "error");
+            
+            // Retry after 5 seconds
+            setTimeout(initMQTT, 5000);
+        }
+
+        function onConnectionLost(response) {
+            console.error("MQTT Connection Lost:", response);
+            isConnected = false;
+            updateConnectionStatus("Connection lost. Reconnecting...", "danger");
+            addLogEntry("MQTT connection lost: " + response.errorMessage, "error");
+            
+            // Auto-reconnect
+            setTimeout(initMQTT, 3000);
+        }
+
+        function onMessageArrived(message) {
+            try {
+                messageCount++;
+                lastUpdate = new Date();
+                
+                const payload = JSON.parse(message.payloadString);
+                const topic = message.destinationName;
+                
+                console.log("Received from", topic, ":", payload);
+                
+                // Process based on topic
+                switch(topic) {
+                    case "vquail/status/device":
+                        updateDeviceStatus(payload);
+                        break;
+                    case "vquail/status/sensors":
+                        updateSensorData(payload);
+                        break;
+                    case "vquail/status/system":
+                        updateSystemStatus(payload);
+                        break;
+                }
+                
+                updateUI();
+                updateLastUpdateTime();
+                
+            } catch (error) {
+                console.error("Error processing message:", error);
+                addLogEntry("Error processing MQTT message", "error");
+            }
+        }
+
+        function sendToMQTT(data, customTopic = null) {
+            if (!isConnected || !mqttClient) {
+                console.error("Cannot send: MQTT not connected");
+                addLogEntry("Cannot send command: Not connected", "error");
+                return false;
+            }
+            
+            const topic = customTopic || CONFIG.topics.publish;
+            const message = new Paho.MQTT.Message(JSON.stringify(data));
+            message.destinationName = topic;
+            message.qos = 1;
+            
+            try {
+                mqttClient.send(message);
+                console.log("Sent to", topic, ":", data);
+                return true;
+            } catch (error) {
+                console.error("Send failed:", error);
+                addLogEntry("Failed to send command: " + error.message, "error");
+                return false;
+            }
+        }
+
+        // ============ DATA PROCESSING ============
+        function updateDeviceStatus(data) {
+            console.log("Updating device status:", data);
+            
+            systemState.fan = data.fan || false;
+            systemState.heat = data.heat || false;
+            systemState.autoMode = data.auto !== undefined ? data.auto : true;
+            systemState.stage = data.stage || "Unknown";
+            systemState.age = data.age || 0;
+            systemState.sensorOnline = data.sensor_online || false;
+            systemState.sensorDisconnected = data.sensor_disconnected || false;
+            systemState.controlChannel = data.control_channel || "AUTO";
+            systemState.tempOffset = data.temp_offset || 0;
+            systemState.humOffset = data.hum_offset || 0;
+            systemState.uptime = data.uptime || "0s";
+            
+            // Handle alarm
+            if (data.alarm_active && data.alarm) {
+                showAlarm(data.alarm, data.alarm_source || "System");
+            } else {
+                hideAlarm();
+            }
+        }
+
+        function updateSensorData(data) {
+            console.log("Updating sensor data:", data);
+            
+            systemState.temperature = data.temp;
+            systemState.humidity = data.hum;
+            systemState.tempOffset = data.temp_offset || 0;
+            systemState.humOffset = data.hum_offset || 0;
+        }
+
+        function updateSystemStatus(data) {
+            console.log("Updating system status:", data);
+            
+            systemState.wifi = data.wifi || false;
+            systemState.mqtt = data.mqtt || false;
+            systemState.sdCard = data.sd_card || false;
+            systemState.tft = data.tft || false;
+        }
+
+        // ============ UI UPDATES ============
+        function updateUI() {
+            // Temperature
+            const tempValue = systemState.temperature !== null ? systemState.temperature.toFixed(1) : '--.-';
+            document.getElementById('temperatureValue').textContent = tempValue;
+            document.getElementById('tempOffset').textContent = systemState.tempOffset.toFixed(1) + '°C';
+            document.getElementById('tempCurrent').textContent = tempValue;
+            updateSensorStatus();
+            
+            // Humidity
+            const humValue = systemState.humidity !== null ? systemState.humidity.toFixed(1) : '--.-';
+            document.getElementById('humidityValue').textContent = humValue;
+            document.getElementById('humOffset').textContent = systemState.humOffset.toFixed(1) + '%';
+            document.getElementById('humCurrent').textContent = humValue;
+            
+            // Device Status
+            document.getElementById('fanStatus').className = `badge ${systemState.fan ? 'bg-success' : 'bg-secondary'}`;
+            document.getElementById('fanStatus').textContent = systemState.fan ? 'ON' : 'OFF';
+            
+            document.getElementById('heatStatus').className = `badge ${systemState.heat ? 'bg-danger' : 'bg-secondary'}`;
+            document.getElementById('heatStatus').textContent = systemState.heat ? 'ON' : 'OFF';
+            
+            // System Status
+            document.getElementById('lifeStage').textContent = systemState.stage;
+            document.getElementById('ageDays').textContent = systemState.age + ' days';
+            document.getElementById('uptime').textContent = formatUptime(systemState.uptime);
+            
+            // Network Status
+            document.getElementById('wifiStatus').className = `badge ${systemState.wifi ? 'bg-success' : 'bg-danger'}`;
+            document.getElementById('wifiStatus').textContent = systemState.wifi ? 'Connected' : 'Disconnected';
+            
+            document.getElementById('mqttStatus').className = `badge ${systemState.mqtt ? 'bg-success' : 'bg-danger'}`;
+            document.getElementById('mqttStatus').textContent = systemState.mqtt ? 'Connected' : 'Disconnected';
+            
+            document.getElementById('sensorStatus').className = `badge ${getSensorStatusBadge()}`;
+            document.getElementById('sensorStatus').textContent = getSensorStatusText();
+            
+            document.getElementById('sdStatus').className = `badge ${systemState.sdCard ? 'bg-success' : 'bg-danger'}`;
+            document.getElementById('sdStatus').textContent = systemState.sdCard ? 'OK' : 'ERROR';
+            
+            document.getElementById('tftStatus').className = `badge ${systemState.tft ? 'bg-success' : 'bg-danger'}`;
+            document.getElementById('tftStatus').textContent = systemState.tft ? 'OK' : 'ERROR';
+            
+            // Control Mode
+            updateControlModeUI();
+            
+            // Control Channel
+            updateControlChannelUI();
+            
+            // Update progress bars
+            updateProgressBars();
+            
+            // Update stage limits
+            updateStageLimits();
+        }
+
+        function updateSensorStatus() {
+            const sensorStatus = getSensorStatusText();
+            const sensorClass = getSensorStatusBadge();
+            
+            document.getElementById('tempStatus').className = `badge ${sensorClass}`;
+            document.getElementById('tempStatus').textContent = sensorStatus;
+            
+            document.getElementById('humStatus').className = `badge ${sensorClass}`;
+            document.getElementById('humStatus').textContent = sensorStatus;
+        }
+
+        function updateControlModeUI() {
+            const isAuto = systemState.autoMode;
+            
+            // Update mode buttons
+            document.getElementById('btnAutoMode').className = `btn ${isAuto ? 'btn-primary' : 'btn-outline-primary'} control-btn`;
+            document.getElementById('btnManualMode').className = `btn ${!isAuto ? 'btn-warning' : 'btn-outline-warning'} control-btn`;
+            
+            // Update mode indicator
+            document.getElementById('currentMode').className = `mode-indicator ${isAuto ? 'mode-auto' : 'mode-manual'}`;
+            document.getElementById('currentMode').textContent = isAuto ? 'AUTO MODE' : 'MANUAL MODE';
+            
+            // Update instructions
+            document.getElementById('controlInstructions').textContent = isAuto ?
+                'In AUTO mode, devices are controlled automatically' :
+                'In MANUAL mode, you can control devices';
+            
+            // Enable/disable control buttons
+            const controlButtons = [
+                'btnFanOn', 'btnFanOff', 'btnHeatOn', 'btnHeatOff', 'btnBothOn', 'btnBothOff'
+            ];
+            
+            controlButtons.forEach(btnId => {
+                const btn = document.getElementById(btnId);
+                btn.disabled = isAuto;
+            });
+        }
+
+        function updateControlChannelUI() {
+            const channel = systemState.controlChannel;
+            const element = document.getElementById('controlChannel');
+            
+            element.textContent = channel;
+            element.className = `channel-badge ${
+                channel === 'TFT' ? 'channel-tft' :
+                channel === 'WEB' ? 'channel-web' : 'channel-auto'
+            }`;
+        }
+
+        function updateProgressBars() {
+            // Simple progress bars for temperature/humidity
+            if (systemState.temperature !== null) {
+                const temp = systemState.temperature;
+                const width = Math.min(Math.max((temp - 15) / 25 * 100, 0), 100);
+                document.getElementById('tempProgress').style.width = width + '%';
+            }
+            
+            if (systemState.humidity !== null) {
+                const hum = systemState.humidity;
+                const width = Math.min(Math.max(hum, 0), 100);
+                document.getElementById('humProgress').style.width = width + '%';
+            }
+        }
+
+        function updateStageLimits() {
+            // Find current stage
+            const stage = CONFIG.stages.find(s => s.name === systemState.stage) || CONFIG.stages[0];
+            
+            if (stage) {
+                document.getElementById('tempMin').textContent = stage.tempMin;
+                document.getElementById('tempMax').textContent = stage.tempMax;
+                document.getElementById('humMin').textContent = stage.humMin;
+                document.getElementById('humMax').textContent = stage.humMax;
+            }
+        }
+
+        // ============ CONTROL FUNCTIONS ============
+        function setFan(state) {
+            if (sendToMQTT({ fan: state })) {
+                addLogEntry(`Fan turned ${state ? 'ON' : 'OFF'}`, "control");
+            }
+        }
+
+        function setHeat(state) {
+            if (sendToMQTT({ heat: state })) {
+                addLogEntry(`Heat lamp turned ${state ? 'ON' : 'OFF'}`, "control");
+            }
+        }
+
+        function setAutoMode(auto) {
+            if (sendToMQTT({ auto: auto })) {
+                addLogEntry(`Switched to ${auto ? 'AUTO' : 'MANUAL'} mode`, "control");
+            }
+        }
+
+        function adjustCalibration(type, amount) {
+            if (type === 'temp') {
+                const newOffset = systemState.tempOffset + amount;
+                if (sendToMQTT({ temp_offset: newOffset }, CONFIG.topics.calibration)) {
+                    addLogEntry(`Temp calibration adjusted by ${amount.toFixed(1)}°C`, "control");
+                }
+            } else if (type === 'hum') {
+                const newOffset = systemState.humOffset + amount;
+                if (sendToMQTT({ hum_offset: newOffset }, CONFIG.topics.calibration)) {
+                    addLogEntry(`Hum calibration adjusted by ${amount.toFixed(1)}%`, "control");
+                }
+            }
+        }
+
+        function resetCalibration() {
+            if (confirm("Reset all calibration to zero?")) {
+                if (sendToMQTT({ reset_calibration: true }, CONFIG.topics.calibration)) {
+                    addLogEntry("Calibration reset", "control");
+                }
+            }
+        }
+
+        function forceUpdate() {
+            if (sendToMQTT({ request: "full" }, "vquail/status/request")) {
+                addLogEntry("Requested system update", "control");
+            }
+        }
+
+        function rebootSystem() {
+            if (confirm("Reboot the VQuail system?")) {
+                if (sendToMQTT({ reboot: true })) {
+                    addLogEntry("System reboot requested", "control");
+                }
+            }
+        }
+
+        // ============ UI HELPER FUNCTIONS ============
+        function setupEventListeners() {
+            // Control buttons
+            document.getElementById('btnFanOn').addEventListener('click', () => setFan(true));
+            document.getElementById('btnFanOff').addEventListener('click', () => setFan(false));
+            document.getElementById('btnHeatOn').addEventListener('click', () => setHeat(true));
+            document.getElementById('btnHeatOff').addEventListener('click', () => setHeat(false));
+            document.getElementById('btnBothOn').addEventListener('click', () => {
+                setFan(true);
+                setHeat(true);
+            });
+            document.getElementById('btnBothOff').addEventListener('click', () => {
+                setFan(false);
+                setHeat(false);
+            });
+            document.getElementById('btnAutoMode').addEventListener('click', () => setAutoMode(true));
+            document.getElementById('btnManualMode').addEventListener('click', () => setAutoMode(false));
+            document.getElementById('dismissAlarm').addEventListener('click', hideAlarm);
+        }
+
+        function showAlarm(message, source) {
+            document.getElementById('alarmMessage').textContent = message;
+            document.getElementById('alarmSource').textContent = source;
+            document.getElementById('alarmBanner').classList.remove('d-none');
+            
+            addLogEntry(`ALARM: ${message} (${source})`, "error");
+        }
+
+        function hideAlarm() {
+            document.getElementById('alarmBanner').classList.add('d-none');
+        }
+
+        function updateConnectionStatus(message, type) {
+            const iconClass = {
+                success: 'fa-check-circle text-success',
+                warning: 'fa-exclamation-circle text-warning',
+                danger: 'fa-times-circle text-danger',
+                info: 'fa-info-circle text-info'
+            }[type] || 'fa-circle text-secondary';
+            
+            document.getElementById('connectionStatus').innerHTML = 
+                `<i class="fas ${iconClass} me-1"></i> ${message}`;
+        }
+
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = 
+                now.toLocaleTimeString('en-US', {hour12: false});
+            document.getElementById('currentDate').textContent = 
+                now.toLocaleDateString('en-CA');
+        }
+
+        function updateLastUpdateTime() {
+            if (!lastUpdate) return;
+            
+            const now = new Date();
+            const diff = Math.floor((now - lastUpdate) / 1000);
+            
+            let text;
+            if (diff < 10) text = "Just now";
+            else if (diff < 60) text = `${diff} seconds ago`;
+            else if (diff < 3600) text = `${Math.floor(diff/60)} minutes ago`;
+            else text = lastUpdate.toLocaleTimeString();
+            
+            document.getElementById('lastUpdate').textContent = `Last update: ${text}`;
+            document.getElementById('messageCount').textContent = `Messages: ${messageCount}`;
+        }
+
+        function checkConnection() {
+            if (!isConnected && mqttClient && !mqttClient.isConnected()) {
+                updateConnectionStatus("Reconnecting...", "warning");
+                initMQTT();
+            }
+        }
+
+        function getSensorStatusClass() {
+            if (systemState.sensorDisconnected) return 'bg-secondary';
+            if (!systemState.sensorOnline) return 'bg-danger';
+            return 'bg-success';
+        }
+
+        function getSensorStatusText() {
+            if (systemState.sensorDisconnected) return 'DISCONNECTED';
+            if (!systemState.sensorOnline) return 'OFFLINE';
+            return 'ONLINE';
+        }
+
+        function getSensorStatusBadge() {
+            if (systemState.sensorDisconnected) return 'bg-secondary';
+            if (!systemState.sensorOnline) return 'bg-danger';
+            return 'bg-success';
+        }
+
+        function formatUptime(seconds) {
+            const secs = parseInt(seconds);
+            const hours = Math.floor(secs / 3600);
+            const minutes = Math.floor((secs % 3600) / 60);
+            const remainingSeconds = secs % 60;
+            
+            if (hours > 0) return `${hours}h ${minutes}m`;
+            if (minutes > 0) return `${minutes}m ${remainingSeconds}s`;
+            return `${remainingSeconds}s`;
+        }
+
+        // ============ LOG FUNCTIONS ============
+        function addLogEntry(message, type = "info") {
+            const timestamp = new Date().toLocaleTimeString('en-US', {hour12: false});
+            const entry = {
+                time: timestamp,
+                message: message,
+                type: type
+            };
+            
+            activityLog.unshift(entry);
+            if (activityLog.length > 50) activityLog.pop();
+            
+            updateLogDisplay();
+        }
+
+        function updateLogDisplay() {
+            const container = document.getElementById('activityLog');
+            const empty = document.getElementById('emptyLog');
+            
+            if (activityLog.length === 0) {
+                empty.classList.remove('d-none');
+                return;
+            }
+            
+            empty.classList.add('d-none');
+            container.innerHTML = '';
+            
+            activityLog.forEach(entry => {
+                const div = document.createElement('div');
+                div.className = `log-entry log-${entry.type}`;
+                div.innerHTML = `<small class="text-muted me-2">[${entry.time}]</small> ${entry.message}`;
+                container.appendChild(div);
+            });
+        }
+
+        function clearLog() {
+            if (confirm("Clear all log entries?")) {
+                activityLog = [];
+                updateLogDisplay();
+                addLogEntry("Log cleared", "info");
+            }
+        }
+
+        function exportLog() {
+            const text = activityLog.map(e => `[${e.time}] ${e.message}`).join('\n');
+            const blob = new Blob([text], {type: 'text/plain'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `vquail-log-${new Date().toISOString().slice(0,10)}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            addLogEntry("Log exported", "info");
+        }
+
+        // ============ TEST FUNCTIONS ============
+        function testMQTT() {
+            console.log("Testing MQTT connection...");
+            
+            const testClient = new Paho.MQTT.Client(
+                CONFIG.mqtt.host,
+                Number(CONFIG.mqtt.port),
+                "test-client-" + Math.random().toString(36).substr(2, 8)
+            );
+            
+            testClient.connect({
+                useSSL: true,
+                userName: CONFIG.mqtt.username,
+                password: CONFIG.mqtt.password,
+                onSuccess: function() {
+                    console.log("MQTT Test: Connected successfully!");
+                    alert("MQTT connection test: SUCCESS!");
+                    testClient.disconnect();
+                },
+                onFailure: function(error) {
+                    console.error("MQTT Test: Connection failed:", error);
+                    alert("MQTT connection test: FAILED\n" + error.errorMessage);
+                }
+            });
+        }
+
+        function sendTestCommand() {
+            console.log("Sending test command...");
+            sendToMQTT({
+                test: "web_interface",
+                timestamp: new Date().toISOString(),
+                fan: false,
+                heat: false,
+                auto: true
+            });
+            addLogEntry("Test command sent", "info");
+        }
+    </script>
+</body>
+</html>
