@@ -100,9 +100,23 @@
             border-radius: 50%;
         }
 
-        .connected { background: var(--success); }
-        .disconnected { background: var(--danger); }
-        .connecting { background: var(--warning); }
+        .connected { 
+            background: var(--success);
+            box-shadow: 0 0 10px var(--success);
+        }
+        .disconnected { 
+            background: var(--danger);
+        }
+        .connecting { 
+            background: var(--warning);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
 
         .dashboard {
             display: grid;
@@ -352,6 +366,7 @@
         .log-error { color: #f44336; }
         .log-warning { color: #ff9800; }
         .log-debug { color: #2196F3; }
+        .log-success { color: #4CAF50; }
 
         .notification {
             position: fixed;
@@ -364,11 +379,13 @@
             z-index: 1000;
             animation: slideIn 0.3s ease;
             box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+            display: none;
         }
 
         .notification.success { background: var(--success); }
         .notification.error { background: var(--danger); }
         .notification.warning { background: var(--warning); }
+        .notification.info { background: var(--info); }
 
         @keyframes slideIn {
             from { transform: translateX(100%); opacity: 0; }
@@ -414,6 +431,26 @@
             border-top: 1px solid var(--border-color);
         }
 
+        .connection-debug {
+            margin-top: 15px;
+            padding: 15px;
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 10px;
+            font-size: 0.9rem;
+        }
+
+        .debug-btn {
+            margin-top: 10px;
+            padding: 8px 15px;
+            background: var(--warning);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
         @media (max-width: 768px) {
             .dashboard {
                 grid-template-columns: 1fr;
@@ -429,12 +466,11 @@
                 gap: 15px;
                 text-align: center;
             }
-        }
-
-        /* Chart styles */
-        .chart-container {
-            height: 200px;
-            margin-top: 20px;
+            
+            .connection-status {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
         }
     </style>
 </head>
@@ -445,7 +481,7 @@
                 <i class="fas fa-dove logo-icon"></i>
                 <div class="logo-text">
                     <h1>VQuail Control Dashboard</h1>
-                    <p>Web Control Interface v2.0 - HiveMQ TLS</p>
+                    <p>Web Control Interface v2.0 - HiveMQ TLS (Port 8883)</p>
                 </div>
             </div>
             <div class="connection-status">
@@ -533,7 +569,7 @@
                         <span>Control Panel</span>
                     </div>
                     <div id="controlSource">
-                        <small>Control: <span id="currentControl">--</span></small>
+                        <small>Control: <span id="currentControl" style="font-weight: bold;">--</span></small>
                     </div>
                 </div>
 
@@ -574,6 +610,22 @@
                     </button>
                     <button class="btn btn-primary btn-large" onclick="controlBoth(false)">
                         <i class="fas fa-power-off"></i> BOTH OFF
+                    </button>
+                </div>
+
+                <!-- Connection Debug Section -->
+                <div class="connection-debug">
+                    <strong>Connection Debug:</strong>
+                    <div id="connectionDebugInfo">
+                        Using MQTT over TLS (Port 8883)<br>
+                        Host: 514ee1c5407448169298c78647ad26b9.s1.eu.hivemq.cloud<br>
+                        Status: <span id="debugStatus">Not connected</span>
+                    </div>
+                    <button class="debug-btn" onclick="testWebSocketConnection()">
+                        <i class="fas fa-wifi"></i> Test WebSocket
+                    </button>
+                    <button class="debug-btn" onclick="forceReconnect()" style="margin-left: 10px;">
+                        <i class="fas fa-plug"></i> Reconnect
                     </button>
                 </div>
             </div>
@@ -695,38 +747,45 @@
                 <div class="log-container" id="logContainer">
                     <div class="log-entry">
                         <span class="log-time">00:00:00</span>
-                        <span class="log-info">System initialized. Waiting for connection...</span>
+                        <span class="log-info">VQuail Dashboard initialized. Ready to connect...</span>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="footer">
-            <p>VQuail Control Dashboard v2.0 | ESP32-S3 with HiveMQ TLS | Last Updated: <span id="lastUpdated">--</span></p>
+            <p>VQuail Control Dashboard v2.0 | ESP32-S3 with HiveMQ TLS (Port 8883) | Last Updated: <span id="lastUpdated">--</span></p>
             <p style="margin-top: 5px; font-size: 0.8rem; opacity: 0.7;">
                 Temperature Range: Brooding (35-37°C) → Adult (20-24°C) | Humidity Range: 50-70%
             </p>
         </div>
     </div>
 
-    <div id="notification" class="notification" style="display: none;"></div>
+    <div id="notification" class="notification"></div>
 
     <script>
-        // Configuration
+        // ================= CONFIGURATION =================
         const MQTT_CONFIG = {
             host: '514ee1c5407448169298c78647ad26b9.s1.eu.hivemq.cloud',
-            port: 8883,
+            port: 8883,  // MQTT over TLS (recommended)
             username: 'vquail',
             password: 'Vquail12345',
-            clientId: 'web-dashboard-' + Math.random().toString(16).substr(2, 8),
-            useSSL: true
+            clientId: 'vquail-web-' + Math.random().toString(36).substr(2, 9),
+            protocol: 'wss',  // WebSocket Secure
+            reconnectPeriod: 5000,  // 5 seconds
+            connectTimeout: 10000,  // 10 seconds
+            // IMPORTANT: For HiveMQ Cloud with self-signed certs
+            rejectUnauthorized: false
         };
 
-        // State variables
+        // ================= STATE VARIABLES =================
         let mqttClient = null;
         let isConnected = false;
+        let connectionAttempts = 0;
+        let maxConnectionAttempts = 3;
         let lastUpdateTime = null;
-        let systemState = {
+        
+        const systemState = {
             temp: 0,
             hum: 0,
             rawTemp: 0,
@@ -751,122 +810,189 @@
             lastUpdated: '--:--'
         };
 
-        // Initialize MQTT connection
+        // ================= MQTT CONNECTION =================
         function connectMQTT() {
+            updateStatus('mqtt', 'connecting');
+            connectionAttempts++;
+            
+            logMessage(`Connection attempt ${connectionAttempts}/${maxConnectionAttempts}`, 'info');
+            document.getElementById('debugStatus').textContent = 'Connecting...';
+            document.getElementById('debugStatus').style.color = 'var(--warning)';
+            
+            // Prepare connection options
             const options = {
                 username: MQTT_CONFIG.username,
                 password: MQTT_CONFIG.password,
                 clientId: MQTT_CONFIG.clientId,
                 clean: true,
-                reconnectPeriod: 1000,
-                connectTimeout: 30 * 1000,
+                reconnectPeriod: MQTT_CONFIG.reconnectPeriod,
+                connectTimeout: MQTT_CONFIG.connectTimeout,
+                rejectUnauthorized: MQTT_CONFIG.rejectUnauthorized,
+                protocol: MQTT_CONFIG.protocol,
+                resubscribe: true
             };
-
-            const url = `wss://${MQTT_CONFIG.host}:${MQTT_CONFIG.port}/mqtt`;
+            
+            // Construct WebSocket URL for MQTT over TLS
+            const wsUrl = `wss://${MQTT_CONFIG.host}:${MQTT_CONFIG.port}/mqtt`;
+            
+            logMessage(`Connecting to: ${wsUrl}`, 'debug');
             
             try {
-                mqttClient = mqtt.connect(url, options);
-                updateStatus('mqtt', 'connecting');
-                logMessage('Connecting to MQTT broker...', 'info');
-
+                // Create MQTT client with proper error handling
+                mqttClient = mqtt.connect(wsUrl, options);
+                
+                // ============ EVENT HANDLERS ============
+                
+                // On successful connection
                 mqttClient.on('connect', () => {
                     isConnected = true;
+                    connectionAttempts = 0; // Reset counter on success
                     updateStatus('mqtt', 'connected');
-                    logMessage('Connected to HiveMQ broker', 'success');
+                    document.getElementById('debugStatus').textContent = 'Connected ✓';
+                    document.getElementById('debugStatus').style.color = 'var(--success)';
                     
-                    // Subscribe to all vquail topics
-                    mqttClient.subscribe('vquail/#', (err) => {
-                        if (!err) {
-                            logMessage('Subscribed to all vquail topics', 'info');
-                            showNotification('Connected to VQuail system', 'success');
-                            
-                            // Request full status update
-                            setTimeout(() => {
-                                requestFullStatus();
-                            }, 1000);
-                        }
+                    logMessage('✓ Connected to HiveMQ Cloud via TLS (Port 8883)', 'success');
+                    showNotification('Connected to VQuail System', 'success');
+                    
+                    // Subscribe to ALL vquail topics for comprehensive monitoring
+                    const topics = [
+                        'vquail/#',  // All topics
+                        'vquail/status/#',
+                        'vquail/control/#',
+                        'vquail/calibration/#',
+                        'vquail/web/#'  // Specifically for web control
+                    ];
+                    
+                    topics.forEach(topic => {
+                        mqttClient.subscribe(topic, { qos: 1 }, (err) => {
+                            if (!err) {
+                                logMessage(`Subscribed to: ${topic}`, 'debug');
+                            } else {
+                                logMessage(`Subscription error for ${topic}: ${err.message}`, 'error');
+                            }
+                        });
                     });
+                    
+                    // Request full system status immediately
+                    setTimeout(() => {
+                        requestFullStatus();
+                    }, 1000);
                 });
-
+                
+                // On incoming messages
                 mqttClient.on('message', (topic, message) => {
                     const msg = message.toString();
                     handleMQTTMessage(topic, msg);
                 });
-
+                
+                // On connection error
                 mqttClient.on('error', (error) => {
                     console.error('MQTT Error:', error);
-                    logMessage(`MQTT Error: ${error.message}`, 'error');
+                    logMessage(`✗ MQTT Error: ${error.message}`, 'error');
                     updateStatus('mqtt', 'disconnected');
+                    document.getElementById('debugStatus').textContent = `Error: ${error.message}`;
+                    document.getElementById('debugStatus').style.color = 'var(--danger)';
+                    
+                    if (connectionAttempts >= maxConnectionAttempts) {
+                        logMessage('Max connection attempts reached. Use "Reconnect" button to try again.', 'warning');
+                        showNotification('Connection failed. Check credentials and network.', 'error');
+                    }
                 });
-
+                
+                // On connection close
                 mqttClient.on('close', () => {
-                    isConnected = false;
-                    logMessage('Disconnected from MQTT broker', 'warning');
-                    updateStatus('mqtt', 'disconnected');
+                    if (isConnected) {
+                        isConnected = false;
+                        logMessage('Disconnected from MQTT broker', 'warning');
+                        updateStatus('mqtt', 'disconnected');
+                        document.getElementById('debugStatus').textContent = 'Disconnected';
+                        document.getElementById('debugStatus').style.color = 'var(--danger)';
+                    }
                 });
-
+                
+                // On reconnect
                 mqttClient.on('reconnect', () => {
                     logMessage('Reconnecting to MQTT...', 'info');
                     updateStatus('mqtt', 'connecting');
+                    document.getElementById('debugStatus').textContent = 'Reconnecting...';
+                    document.getElementById('debugStatus').style.color = 'var(--warning)';
                 });
-
+                
+                // On offline
+                mqttClient.on('offline', () => {
+                    logMessage('MQTT client went offline', 'warning');
+                    updateStatus('mqtt', 'disconnected');
+                    document.getElementById('debugStatus').textContent = 'Offline';
+                    document.getElementById('debugStatus').style.color = 'var(--danger)';
+                });
+                
+                // On end
+                mqttClient.on('end', () => {
+                    logMessage('MQTT connection ended', 'info');
+                    updateStatus('mqtt', 'disconnected');
+                    document.getElementById('debugStatus').textContent = 'Ended';
+                    document.getElementById('debugStatus').style.color = 'var(--danger)';
+                });
+                
             } catch (error) {
-                console.error('Connection error:', error);
-                logMessage(`Connection failed: ${error.message}`, 'error');
+                console.error('Connection setup error:', error);
+                logMessage(`✗ Connection setup failed: ${error.message}`, 'error');
                 updateStatus('mqtt', 'disconnected');
+                document.getElementById('debugStatus').textContent = `Setup error: ${error.message}`;
+                document.getElementById('debugStatus').style.color = 'var(--danger)';
+                
+                if (connectionAttempts < maxConnectionAttempts) {
+                    logMessage(`Retrying in 3 seconds... (${connectionAttempts}/${maxConnectionAttempts})`, 'info');
+                    setTimeout(connectMQTT, 3000);
+                }
             }
         }
 
-        // Handle incoming MQTT messages
+        // ================= MESSAGE HANDLING =================
         function handleMQTTMessage(topic, message) {
             try {
                 const data = JSON.parse(message);
+                const now = new Date();
                 
-                if (topic === 'vquail/status/device' || topic === 'vquail/status/sensors') {
+                // Log all messages for debugging
+                logMessage(`[${topic}] Received ${Object.keys(data).length} fields`, 'debug');
+                
+                // Handle different topics
+                if (topic.includes('status/device') || topic.includes('status/sensors')) {
                     updateSystemState(data);
-                } else if (topic === 'vquail/control/source') {
+                } else if (topic.includes('control/source')) {
                     updateControlSource(data);
-                } else if (topic === 'vquail/calibration/current') {
+                } else if (topic.includes('calibration/')) {
                     updateCalibration(data);
-                } else if (topic.startsWith('vquail/test')) {
-                    logMessage(`Test message received: ${JSON.stringify(data)}`, 'debug');
+                } else if (topic.includes('test')) {
+                    logMessage(`Test response: ${JSON.stringify(data)}`, 'debug');
                 }
                 
-                // Log the message
-                logMessage(`[${topic}] ${JSON.stringify(data).substring(0, 100)}...`, 'debug');
+                // Update last update time
+                lastUpdateTime = now;
                 
             } catch (error) {
-                logMessage(`Error parsing message: ${error.message}`, 'error');
+                logMessage(`Error parsing message from ${topic}: ${error.message}`, 'error');
             }
         }
 
-        // Update system state from received data
         function updateSystemState(data) {
             const now = new Date();
             lastUpdateTime = now;
             
-            // Update state
+            // Update all state variables from received data
+            Object.keys(data).forEach(key => {
+                if (systemState[key] !== undefined && data[key] !== undefined) {
+                    systemState[key] = data[key];
+                }
+            });
+            
+            // Always update these critical fields
             if (data.temp !== undefined) systemState.temp = data.temp;
             if (data.hum !== undefined) systemState.hum = data.hum;
-            if (data.raw_temp !== undefined) systemState.rawTemp = data.raw_temp;
-            if (data.raw_hum !== undefined) systemState.rawHum = data.raw_hum;
             if (data.fan !== undefined) systemState.fan = data.fan;
             if (data.heat !== undefined) systemState.heat = data.heat;
             if (data.auto !== undefined) systemState.autoMode = data.auto;
-            if (data.override !== undefined) systemState.override = data.override;
-            if (data.stage !== undefined) systemState.stage = data.stage;
-            if (data.age !== undefined) systemState.age = data.age;
-            if (data.wifi_connected !== undefined) systemState.wifi = data.wifi_connected;
-            if (data.mqtt_connected !== undefined) systemState.mqtt = data.mqtt_connected;
-            if (data.sensor_online !== undefined) systemState.sensor = data.sensor_online;
-            if (data.alarm_active !== undefined) systemState.alarm = data.alarm_active;
-            if (data.alarm_message !== undefined) systemState.alarmMessage = data.alarm_message;
-            if (data.alarm_source !== undefined) systemState.alarmSource = data.alarm_source;
-            if (data.control_channel !== undefined) systemState.controlChannel = data.control_channel;
-            if (data.temp_offset !== undefined) systemState.tempOffset = data.temp_offset;
-            if (data.hum_offset !== undefined) systemState.humOffset = data.hum_offset;
-            if (data.wifi_rssi !== undefined) systemState.wifiRSSI = data.wifi_rssi;
-            if (data.uptime !== undefined) systemState.uptime = data.uptime;
             
             systemState.lastUpdated = now.toLocaleTimeString();
             
@@ -874,79 +1000,30 @@
             updateUI();
         }
 
-        // Update control source display
-        function updateControlSource(data) {
-            if (data.channel) {
-                systemState.controlChannel = data.channel;
-                document.getElementById('currentControl').textContent = systemState.controlChannel;
-                
-                // Color code the control source
-                const controlElement = document.getElementById('currentControl');
-                switch(systemState.controlChannel) {
-                    case 'WEB':
-                        controlElement.style.color = 'var(--warning)';
-                        break;
-                    case 'TFT':
-                        controlElement.style.color = 'var(--success)';
-                        break;
-                    case 'AUTO':
-                        controlElement.style.color = 'var(--info)';
-                        break;
-                    default:
-                        controlElement.style.color = 'inherit';
-                }
-            }
-        }
-
-        // Update calibration display
-        function updateCalibration(data) {
-            if (data.temp_offset !== undefined) {
-                systemState.tempOffset = data.temp_offset;
-                document.getElementById('tempCalValue').textContent = 
-                    (systemState.tempOffset > 0 ? '+' : '') + systemState.tempOffset.toFixed(1) + '°C';
-            }
-            if (data.hum_offset !== undefined) {
-                systemState.humOffset = data.hum_offset;
-                document.getElementById('humCalValue').textContent = 
-                    (systemState.humOffset > 0 ? '+' : '') + systemState.humOffset.toFixed(1) + '%';
-            }
-        }
-
-        // Update UI with current state
+        // ================= UI UPDATES =================
         function updateUI() {
             // Temperature
-            document.getElementById('temperatureValue').textContent = 
-                systemState.temp.toFixed(1) + '°C';
-            document.getElementById('rawTemp').textContent = 
-                systemState.rawTemp.toFixed(1) + '°C';
+            const tempElement = document.getElementById('temperatureValue');
+            tempElement.textContent = systemState.temp.toFixed(1) + '°C';
+            tempElement.style.color = getTemperatureColor(systemState.temp);
+            
+            document.getElementById('rawTemp').textContent = systemState.rawTemp.toFixed(1) + '°C';
             document.getElementById('tempOffset').textContent = 
                 (systemState.tempOffset > 0 ? '+' : '') + systemState.tempOffset.toFixed(1) + '°C';
             document.getElementById('tempUpdated').textContent = systemState.lastUpdated;
             
-            // Update gauge color based on temperature
-            const tempValue = systemState.temp;
-            let tempColor = '#4CAF50'; // green
-            if (tempValue > 30) tempColor = '#ff9800'; // orange
-            if (tempValue > 35) tempColor = '#f44336'; // red
-            
-            document.getElementById('temperatureValue').style.color = tempColor;
-            
             // Humidity
-            document.getElementById('humidityValue').textContent = 
-                systemState.hum.toFixed(1) + '%';
-            document.getElementById('rawHum').textContent = 
-                systemState.rawHum.toFixed(1) + '%';
+            document.getElementById('humidityValue').textContent = systemState.hum.toFixed(1) + '%';
+            document.getElementById('rawHum').textContent = systemState.rawHum.toFixed(1) + '%';
             document.getElementById('humOffset').textContent = 
                 (systemState.humOffset > 0 ? '+' : '') + systemState.humOffset.toFixed(1) + '%';
             document.getElementById('humUpdated').textContent = systemState.lastUpdated;
             
             // Device states
-            document.getElementById('fanState').textContent = systemState.fan ? 'ON' : 'OFF';
-            document.getElementById('fanState').style.color = systemState.fan ? 'var(--success)' : 'var(--danger)';
+            updateDeviceState('fan', systemState.fan);
+            updateDeviceState('heat', systemState.heat);
             
-            document.getElementById('heatState').textContent = systemState.heat ? 'ON' : 'OFF';
-            document.getElementById('heatState').style.color = systemState.heat ? 'var(--success)' : 'var(--danger)';
-            
+            // Mode states
             document.getElementById('autoState').textContent = systemState.autoMode ? 'ON' : 'OFF';
             document.getElementById('autoState').style.color = systemState.autoMode ? 'var(--success)' : 'var(--warning)';
             
@@ -961,32 +1038,48 @@
             document.getElementById('lastUpdated').textContent = systemState.lastUpdated;
             
             // Alarm display
-            if (systemState.alarm) {
-                document.getElementById('alarmContainer').style.display = 'block';
-                document.getElementById('alarmMessage').textContent = systemState.alarmMessage;
-                document.getElementById('alarmSource').textContent = 'Source: ' + systemState.alarmSource;
-                
-                // Blink effect for critical alarms
-                if (systemState.alarmMessage.toLowerCase().includes('critical')) {
-                    document.getElementById('alarmContainer').style.animation = 'none';
-                    setTimeout(() => {
-                        document.getElementById('alarmContainer').style.animation = 'pulse 1s infinite';
-                    }, 10);
-                }
-            } else {
-                document.getElementById('alarmContainer').style.display = 'none';
-            }
+            updateAlarmDisplay();
             
-            // Update status indicators
+            // Status indicators
             updateStatus('wifi', systemState.wifi ? 'connected' : 'disconnected');
             updateStatus('sensor', systemState.sensor ? 'connected' : 'disconnected');
             
-            // Update temperature stage indicator
+            // Temperature/Humidity stage indicators
             updateTemperatureStage(systemState.temp);
             updateHumidityStage(systemState.hum);
+            
+            // Calibration values
+            document.getElementById('tempCalValue').textContent = 
+                (systemState.tempOffset > 0 ? '+' : '') + systemState.tempOffset.toFixed(1) + '°C';
+            document.getElementById('humCalValue').textContent = 
+                (systemState.humOffset > 0 ? '+' : '') + systemState.humOffset.toFixed(1) + '%';
         }
 
-        // Update temperature stage indicator
+        function updateDeviceState(device, state) {
+            const element = document.getElementById(device + 'State');
+            element.textContent = state ? 'ON' : 'OFF';
+            element.style.color = state ? 'var(--success)' : 'var(--danger)';
+        }
+
+        function updateAlarmDisplay() {
+            const container = document.getElementById('alarmContainer');
+            
+            if (systemState.alarm && systemState.alarmMessage) {
+                container.style.display = 'block';
+                document.getElementById('alarmMessage').textContent = systemState.alarmMessage;
+                document.getElementById('alarmSource').textContent = 'Source: ' + systemState.alarmSource;
+                
+                // Add blinking effect for critical alarms
+                if (systemState.alarmMessage.toLowerCase().includes('critical')) {
+                    container.style.animation = 'pulse 1s infinite';
+                } else {
+                    container.style.animation = 'none';
+                }
+            } else {
+                container.style.display = 'none';
+            }
+        }
+
         function updateTemperatureStage(temp) {
             let stage = 'Normal';
             let color = 'var(--success)';
@@ -1015,7 +1108,6 @@
             document.getElementById('tempStage').style.color = color;
         }
 
-        // Update humidity stage indicator
         function updateHumidityStage(hum) {
             let stage = 'Normal';
             let color = 'var(--success)';
@@ -1041,7 +1133,7 @@
             document.getElementById('humStage').style.color = color;
         }
 
-        // Control functions
+        // ================= CONTROL FUNCTIONS =================
         function controlDevice(device, state) {
             if (!isConnected) {
                 showNotification('Not connected to MQTT', 'error');
@@ -1050,11 +1142,12 @@
             
             const command = {
                 [device]: state,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                source: 'web'
             };
             
             publishCommand(command);
-            showNotification(`${device.toUpperCase()} turned ${state ? 'ON' : 'OFF'}`, 'success');
+            showNotification(`${device.toUpperCase()} ${state ? 'ON' : 'OFF'}`, 'success');
             logMessage(`Control: ${device} → ${state ? 'ON' : 'OFF'}`, 'info');
         }
 
@@ -1071,7 +1164,8 @@
             
             const command = {
                 auto: auto,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                source: 'web'
             };
             
             publishCommand(command);
@@ -1082,8 +1176,8 @@
             document.getElementById('autoControls').style.display = auto ? 'grid' : 'none';
             document.getElementById('manualControls').style.display = auto ? 'none' : 'grid';
             
-            showNotification(`Switched to ${auto ? 'AUTO' : 'MANUAL'} mode`, 'success');
-            logMessage(`Mode changed: ${auto ? 'AUTO' : 'MANUAL'}`, 'info');
+            showNotification(`${auto ? 'AUTO' : 'MANUAL'} mode activated`, 'success');
+            logMessage(`Mode: ${auto ? 'AUTO' : 'MANUAL'}`, 'info');
         }
 
         function adjustCalibration(type, adjustment) {
@@ -1094,12 +1188,13 @@
             
             const command = {
                 [`adjust_${type}`]: adjustment,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                source: 'web'
             };
             
             publishCommand(command);
-            showNotification(`${type === 'temp' ? 'Temperature' : 'Humidity'} calibration adjusted by ${adjustment}`, 'success');
-            logMessage(`Calibration: ${type} adjusted by ${adjustment}`, 'info');
+            showNotification(`${type === 'temp' ? 'Temperature' : 'Humidity'} adjusted by ${adjustment}`, 'success');
+            logMessage(`Calibration: ${type} ${adjustment > 0 ? '+' : ''}${adjustment}`, 'info');
         }
 
         function resetCalibration() {
@@ -1108,15 +1203,16 @@
                 return;
             }
             
-            if (confirm('Are you sure you want to reset calibration to defaults?')) {
+            if (confirm('Reset calibration to defaults?')) {
                 const command = {
                     reset_calibration: true,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    source: 'web'
                 };
                 
                 publishCommand(command);
-                showNotification('Calibration reset to defaults', 'success');
-                logMessage('Calibration reset requested', 'info');
+                showNotification('Calibration reset', 'success');
+                logMessage('Calibration reset', 'info');
             }
         }
 
@@ -1129,11 +1225,12 @@
             const command = {
                 temp_offset: systemState.tempOffset,
                 hum_offset: systemState.humOffset,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                source: 'web'
             };
             
             publishCommand(command);
-            showNotification('Calibration values saved', 'success');
+            showNotification('Calibration saved', 'success');
             logMessage('Calibration saved', 'info');
         }
 
@@ -1146,7 +1243,8 @@
             const command = {
                 test: true,
                 test_command: "Web dashboard test",
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                source: 'web'
             };
             
             publishCommand(command);
@@ -1160,10 +1258,11 @@
                 return;
             }
             
-            if (confirm('Are you sure you want to reboot the VQuail system?')) {
+            if (confirm('Reboot the VQuail system?')) {
                 const command = {
                     reboot: true,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    source: 'web'
                 };
                 
                 publishCommand(command);
@@ -1180,7 +1279,8 @@
             
             const command = {
                 request: "full",
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                source: 'web'
             };
             
             const topic = 'vquail/status/request';
@@ -1205,7 +1305,7 @@
             publishStatus();
         }
 
-        // Helper functions
+        // ================= HELPER FUNCTIONS =================
         function publishCommand(command) {
             const topic = 'vquail/web/control';
             publishMessage(topic, command);
@@ -1218,11 +1318,13 @@
             }
             
             const payload = JSON.stringify(message);
-            mqttClient.publish(topic, payload, { qos: 1 }, (error) => {
+            mqttClient.publish(topic, payload, { qos: 1, retain: false }, (error) => {
                 if (error) {
                     console.error('Publish error:', error);
                     logMessage(`Publish failed: ${error.message}`, 'error');
-                    showNotification('Publish failed', 'error');
+                    showNotification('Command failed to send', 'error');
+                } else {
+                    logMessage(`Published to ${topic}`, 'debug');
                 }
             });
         }
@@ -1232,7 +1334,9 @@
             const dot = element.querySelector('.status-dot');
             const text = element.querySelector('span');
             
-            dot.className = 'status-dot ' + status;
+            // Remove all status classes
+            dot.classList.remove('connected', 'disconnected', 'connecting');
+            dot.classList.add(status);
             
             switch(type) {
                 case 'mqtt':
@@ -1244,6 +1348,38 @@
                 case 'sensor':
                     text.textContent = 'Sensor: ' + (status === 'connected' ? 'Online' : 'Offline');
                     break;
+            }
+        }
+
+        function updateControlSource(data) {
+            if (data.channel) {
+                systemState.controlChannel = data.channel;
+                const controlElement = document.getElementById('currentControl');
+                controlElement.textContent = systemState.controlChannel;
+                
+                // Color coding
+                switch(systemState.controlChannel) {
+                    case 'WEB':
+                        controlElement.style.color = 'var(--warning)';
+                        break;
+                    case 'TFT':
+                        controlElement.style.color = 'var(--success)';
+                        break;
+                    case 'AUTO':
+                        controlElement.style.color = 'var(--info)';
+                        break;
+                    default:
+                        controlElement.style.color = 'inherit';
+                }
+            }
+        }
+
+        function updateCalibration(data) {
+            if (data.temp_offset !== undefined) {
+                systemState.tempOffset = data.temp_offset;
+            }
+            if (data.hum_offset !== undefined) {
+                systemState.humOffset = data.hum_offset;
             }
         }
 
@@ -1280,62 +1416,88 @@
             }, 3000);
         }
 
+        function getTemperatureColor(temp) {
+            if (temp < 20) return 'var(--info)';
+            if (temp < 28) return 'var(--success)';
+            if (temp < 35) return 'var(--warning)';
+            return 'var(--danger)';
+        }
+
         function formatUptime(seconds) {
-            if (!seconds) return '--';
+            if (!seconds || isNaN(seconds)) return '--';
             
             const days = Math.floor(seconds / 86400);
             const hours = Math.floor((seconds % 86400) / 3600);
             const minutes = Math.floor((seconds % 3600) / 60);
             
-            if (days > 0) {
-                return `${days}d ${hours}h`;
-            } else if (hours > 0) {
-                return `${hours}h ${minutes}m`;
+            if (days > 0) return `${days}d ${hours}h`;
+            if (hours > 0) return `${hours}h ${minutes}m`;
+            return `${minutes}m`;
+        }
+
+        // ================= DEBUG FUNCTIONS =================
+        function testWebSocketConnection() {
+            logMessage('Testing WebSocket connection...', 'info');
+            
+            const testWs = new WebSocket(`wss://${MQTT_CONFIG.host}:${MQTT_CONFIG.port}/mqtt`);
+            
+            testWs.onopen = () => {
+                logMessage('✓ WebSocket connection successful', 'success');
+                testWs.close();
+            };
+            
+            testWs.onerror = (error) => {
+                logMessage('✗ WebSocket connection failed', 'error');
+            };
+            
+            testWs.onclose = () => {
+                logMessage('WebSocket test completed', 'info');
+            };
+            
+            // Timeout after 5 seconds
+            setTimeout(() => {
+                if (testWs.readyState === WebSocket.CONNECTING) {
+                    logMessage('✗ WebSocket connection timeout', 'warning');
+                    testWs.close();
+                }
+            }, 5000);
+        }
+
+        function forceReconnect() {
+            if (mqttClient) {
+                logMessage('Forcing MQTT reconnection...', 'info');
+                mqttClient.end();
+                setTimeout(connectMQTT, 1000);
             } else {
-                return `${minutes}m`;
+                connectMQTT();
             }
         }
 
-        // Auto-refresh status every 30 seconds
-        setInterval(() => {
-            if (isConnected && lastUpdateTime) {
-                const now = new Date();
-                const diff = (now - lastUpdateTime) / 1000;
-                
-                if (diff > 60) {
-                    logMessage('No updates received for 60+ seconds, requesting status...', 'warning');
-                    publishStatus();
-                }
-            }
-        }, 30000);
-
-        // Initialize on page load
+        // ================= INITIALIZATION =================
         document.addEventListener('DOMContentLoaded', () => {
-            // Initialize connection
-            connectMQTT();
+            logMessage('VQuail Dashboard v2.0 initialized', 'info');
+            logMessage(`Connecting to: ${MQTT_CONFIG.host}:${MQTT_CONFIG.port}`, 'info');
             
-            // Set initial mode
+            // Initialize mode
             toggleMode(true);
             
-            // Add CSS for pulse animation
-            const style = document.createElement('style');
-            style.textContent = `
-                @keyframes pulse {
-                    0% { opacity: 1; }
-                    50% { opacity: 0.5; }
-                    100% { opacity: 1; }
-                }
-            `;
-            document.head.appendChild(style);
+            // Start connection
+            setTimeout(connectMQTT, 1000);
             
-            logMessage('Dashboard initialized. Connecting to VQuail system...', 'info');
+            // Auto-reconnect if disconnected for too long
+            setInterval(() => {
+                if (!isConnected && connectionAttempts < maxConnectionAttempts) {
+                    logMessage('Auto-reconnecting...', 'info');
+                    connectMQTT();
+                }
+            }, 30000); // Every 30 seconds
         });
 
-        // Handle page visibility change
+        // Handle page visibility
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden && isConnected) {
                 // Page became visible, request fresh status
-                publishStatus();
+                requestFullStatus();
             }
         });
     </script>
