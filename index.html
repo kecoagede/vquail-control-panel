@@ -607,6 +607,153 @@
             margin-top: 20px;
         }
 
+        /* Life Stage Controls */
+        .stage-controls {
+            background: var(--light);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .stage-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .stage-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stage-title i {
+            color: var(--info);
+        }
+
+        .stage-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+        }
+
+        .stage-btn {
+            padding: 15px 10px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 13px;
+            text-align: center;
+            background: white;
+            border: 2px solid transparent;
+            color: var(--dark);
+        }
+
+        .stage-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .stage-btn.active {
+            border-color: var(--primary);
+            background: linear-gradient(135deg, rgba(67, 97, 238, 0.1), rgba(67, 97, 238, 0.05));
+            color: var(--primary);
+        }
+
+        .stage-btn.brood1 { background: linear-gradient(135deg, rgba(248, 166, 102, 0.1), rgba(248, 166, 102, 0.2)); }
+        .stage-btn.brood2 { background: linear-gradient(135deg, rgba(253, 32, 140, 0.1), rgba(253, 32, 140, 0.2)); }
+        .stage-btn.grower { background: linear-gradient(135deg, rgba(47, 107, 220, 0.1), rgba(47, 107, 220, 0.2)); }
+        .stage-btn.adult { background: linear-gradient(135deg, rgba(74, 255, 200, 0.1), rgba(74, 255, 200, 0.2)); }
+
+        .stage-btn.brood1.active { background: linear-gradient(135deg, #F9A666, #F9B458); color: white; }
+        .stage-btn.brood2.active { background: linear-gradient(135deg, #FD208C, #F557A1); color: white; }
+        .stage-btn.grower.active { background: linear-gradient(135deg, #2F6BDC, #4895EF); color: white; }
+        .stage-btn.adult.active { background: linear-gradient(135deg, #4AFFC8, #38B9E0); color: white; }
+
+        .age-control {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .age-label {
+            font-size: 14px;
+            color: var(--gray);
+            font-weight: 500;
+        }
+
+        .age-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary);
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .age-buttons {
+            display: flex;
+            gap: 8px;
+            margin-left: auto;
+        }
+
+        .age-btn {
+            width: 36px;
+            height: 36px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: bold;
+            transition: var(--transition);
+        }
+
+        .age-btn.decrease {
+            background: linear-gradient(135deg, var(--danger-light), var(--danger));
+            color: white;
+        }
+
+        .age-btn.increase {
+            background: linear-gradient(135deg, var(--success-light), var(--success));
+            color: white;
+        }
+
+        .age-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .stage-info {
+            margin-top: 15px;
+            padding: 12px;
+            background: rgba(76, 201, 240, 0.1);
+            border-radius: 8px;
+            border-left: 4px solid var(--info);
+        }
+
+        .stage-info p {
+            font-size: 12px;
+            color: var(--dark);
+            line-height: 1.5;
+        }
+
+        .stage-info strong {
+            color: var(--primary);
+        }
+
         /* System Status */
         .status-grid {
             grid-column: span 3;
@@ -999,6 +1146,10 @@
             .calibration-controls {
                 grid-template-columns: 1fr;
             }
+            
+            .stage-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
 
         /* Custom Scrollbar */
@@ -1323,6 +1474,83 @@
                 </div>
             </div>
 
+            <!-- Life Stage Control Panel -->
+            <div class="card calibration-panel">
+                <div class="card-header">
+                    <div class="card-title">
+                        <div class="card-icon warning">
+                            <i class="fas fa-seedling"></i>
+                        </div>
+                        <span>Life Stage & Age Control</span>
+                    </div>
+                    <div class="card-badge" id="stageStatus">Active</div>
+                </div>
+
+                <div class="stage-controls">
+                    <div class="stage-header">
+                        <div class="stage-title">
+                            <i class="fas fa-chart-line"></i>
+                            <span>Select Life Stage</span>
+                        </div>
+                        <div class="age-label">
+                            Current: <span id="currentStageDisplay">--</span>
+                        </div>
+                    </div>
+
+                    <div class="stage-grid">
+                        <button class="stage-btn brood1" onclick="setLifeStage('BROODING_WEEK1')">
+                            <i class="fas fa-baby"></i>
+                            <div>Brood Week 1</div>
+                            <small>0-7 days</small>
+                        </button>
+                        <button class="stage-btn brood2" onclick="setLifeStage('BROODING_WEEK2')">
+                            <i class="fas fa-child"></i>
+                            <div>Brood Week 2</div>
+                            <small>8-14 days</small>
+                        </button>
+                        <button class="stage-btn grower" onclick="setLifeStage('GROWER_WEEK3_6')">
+                            <i class="fas fa-chicken"></i>
+                            <div>Grower</div>
+                            <small>15-42 days</small>
+                        </button>
+                        <button class="stage-btn adult" onclick="setLifeStage('ADULT_LAYER')">
+                            <i class="fas fa-egg"></i>
+                            <div>Adult Layer</div>
+                            <small>43+ days</small>
+                        </button>
+                    </div>
+
+                    <div class="age-control">
+                        <div class="age-label">Current Age:</div>
+                        <div class="age-value" id="currentAgeDisplay">0</div>
+                        <div class="age-buttons">
+                            <button class="age-btn decrease" onclick="adjustAge(-1)">
+                                <i class="fas fa-minus"></i>
+                            </button>
+                            <button class="age-btn increase" onclick="adjustAge(1)">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="stage-info">
+                        <p><i class="fas fa-info-circle"></i> Changing the life stage will automatically adjust temperature and humidity targets. Current stage: <strong id="currentStageInfo">--</strong></p>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 15px; margin-top: 25px;">
+                    <button class="btn btn-outline" style="flex: 1;" onclick="resetToAutoStage()">
+                        <i class="fas fa-robot"></i> Auto Detect
+                    </button>
+                    <button class="btn btn-primary" style="flex: 1;" onclick="saveStageConfig()">
+                        <i class="fas fa-save"></i> Save Configuration
+                    </button>
+                    <button class="btn btn-warning" style="flex: 1;" onclick="getStageInfo()">
+                        <i class="fas fa-info-circle"></i> Stage Info
+                    </button>
+                </div>
+            </div>
+
             <!-- Calibration Panel -->
             <div class="card calibration-panel">
                 <div class="card-header">
@@ -1558,6 +1786,61 @@
 
         let isAuthenticated = false;
 
+        // Life stage configuration matching ESP32 code
+        const LIFE_STAGES = {
+            'BROODING_WEEK1': {
+                name: 'Brood Week 1',
+                shortName: 'Brood1',
+                minAge: 0,
+                maxAge: 7,
+                tempMin: 35.0,
+                tempMax: 37.0,
+                humMin: 60.0,
+                humMax: 70.0,
+                color: '#F9A666',
+                icon: 'fa-baby'
+            },
+            'BROODING_WEEK2': {
+                name: 'Brood Week 2',
+                shortName: 'Brood2',
+                minAge: 8,
+                maxAge: 14,
+                tempMin: 32.0,
+                tempMax: 35.0,
+                humMin: 60.0,
+                humMax: 70.0,
+                color: '#FD208C',
+                icon: 'fa-child'
+            },
+            'GROWER_WEEK3_6': {
+                name: 'Grower',
+                shortName: 'Grower',
+                minAge: 15,
+                maxAge: 42,
+                tempMin: 24.0,
+                tempMax: 28.0,
+                humMin: 55.0,
+                humMax: 65.0,
+                color: '#2F6BDC',
+                icon: 'fa-chicken'
+            },
+            'ADULT_LAYER': {
+                name: 'Adult Layer',
+                shortName: 'Adult',
+                minAge: 43,
+                maxAge: 999,
+                tempMin: 20.0,
+                tempMax: 24.0,
+                humMin: 50.0,
+                humMax: 60.0,
+                color: '#4AFFC8',
+                icon: 'fa-egg'
+            }
+        };
+
+        let currentStage = 'BROODING_WEEK1';
+        let currentAge = 0;
+
         function login() {
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
@@ -1741,6 +2024,7 @@
             
             // System Info
             stage: '--',
+            stageIndex: 0,
             age: 0,
             controlChannel: '--',
             lastSource: '--',
@@ -1772,6 +2056,9 @@
             
             // Set client ID display
             document.getElementById('clientId').textContent = HIVEMQ_CONFIG.clientId;
+            
+            // Initialize stage display
+            updateStageDisplay();
             
             // Auto-connect after 1.5 seconds
             setTimeout(() => {
@@ -1957,12 +2244,245 @@
             // Update timestamps
             systemState.lastUpdate = new Date();
             
+            // Update stage and age if available
+            if (data.stage_index !== undefined) {
+                updateCurrentStageFromIndex(data.stage_index);
+            }
+            
+            if (data.age !== undefined) {
+                currentAge = data.age;
+            }
+            
             // Update UI immediately
             updateSensorDisplays();
             updateDeviceStates();
             updateAlarmDisplay();
+            updateStageDisplay();
             
             logMessage('System state updated from device', 'success');
+        }
+
+        // ================= LIFE STAGE FUNCTIONS =================
+        function setLifeStage(stage) {
+            if (!isAuthenticated) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+            
+            if (!isConnected) {
+                showNotification('Not connected to MQTT', 'error');
+                return;
+            }
+            
+            if (!LIFE_STAGES[stage]) {
+                showNotification('Invalid life stage selected', 'error');
+                return;
+            }
+            
+            currentStage = stage;
+            const stageConfig = LIFE_STAGES[stage];
+            
+            // Reset age to minimum age for the stage
+            currentAge = stageConfig.minAge;
+            
+            // Update UI
+            updateStageDisplay();
+            
+            // Send stage change command
+            const command = {
+                set_stage: stage,
+                age: currentAge,
+                timestamp: Date.now(),
+                source: 'web'
+            };
+            
+            publishCommand('vquail/control', command);
+            
+            // Show notification
+            showNotification(`Life stage set to ${stageConfig.name}`, 'success');
+            logMessage(`Life stage changed to ${stageConfig.name} (Age: ${currentAge} days)`, 'info');
+            
+            // Update stage info
+            updateStageInfo(stageConfig);
+        }
+
+        function adjustAge(change) {
+            if (!isAuthenticated) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+            
+            if (!isConnected) {
+                showNotification('Not connected to MQTT', 'error');
+                return;
+            }
+            
+            const stageConfig = LIFE_STAGES[currentStage];
+            const newAge = currentAge + change;
+            
+            // Validate age range
+            if (newAge < stageConfig.minAge || newAge > stageConfig.maxAge) {
+                showNotification(`Age must be between ${stageConfig.minAge} and ${stageConfig.maxAge} days for ${stageConfig.name}`, 'warning');
+                return;
+            }
+            
+            currentAge = newAge;
+            
+            // Update UI
+            updateStageDisplay();
+            
+            // Send age update command
+            const command = {
+                set_age: currentAge,
+                stage: currentStage,
+                timestamp: Date.now(),
+                source: 'web'
+            };
+            
+            publishCommand('vquail/control', command);
+            
+            // Show notification
+            showNotification(`Age updated to ${currentAge} days`, 'success');
+            logMessage(`Age updated to ${currentAge} days for ${stageConfig.name}`, 'info');
+        }
+
+        function updateCurrentStageFromIndex(index) {
+            // Map index to stage
+            const stages = ['BROODING_WEEK1', 'BROODING_WEEK2', 'GROWER_WEEK3_6', 'ADULT_LAYER'];
+            if (index >= 0 && index < stages.length) {
+                currentStage = stages[index];
+                updateStageDisplay();
+            }
+        }
+
+        function updateStageDisplay() {
+            const stageConfig = LIFE_STAGES[currentStage];
+            
+            if (!stageConfig) return;
+            
+            // Update stage buttons
+            document.querySelectorAll('.stage-btn').forEach(btn => {
+                btn.classList.remove('active');
+                const stage = btn.getAttribute('onclick').match(/'([^']+)'/)[1];
+                if (stage === currentStage) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            // Update age display
+            document.getElementById('currentAgeDisplay').textContent = currentAge;
+            document.getElementById('currentStageDisplay').textContent = stageConfig.shortName;
+            document.getElementById('currentStageInfo').textContent = stageConfig.name;
+            
+            // Update main display
+            document.getElementById('lifeStage').textContent = stageConfig.name;
+            document.getElementById('quailAge').textContent = currentAge + ' days';
+            
+            // Update temperature and humidity stage badges
+            updateStageBadges(stageConfig);
+        }
+
+        function updateStageBadges(stageConfig) {
+            const tempBadge = document.getElementById('tempStage');
+            const humBadge = document.getElementById('humStage');
+            
+            if (!stageConfig) return;
+            
+            // Temperature badge
+            const currentTemp = systemState.temp || 0;
+            if (currentTemp < stageConfig.tempMin) {
+                tempBadge.textContent = 'Too Cold';
+                tempBadge.style.color = 'var(--info)';
+            } else if (currentTemp > stageConfig.tempMax) {
+                tempBadge.textContent = 'Too Hot';
+                tempBadge.style.color = 'var(--danger)';
+            } else {
+                tempBadge.textContent = 'Optimal';
+                tempBadge.style.color = 'var(--success)';
+            }
+            
+            // Humidity badge
+            const currentHum = systemState.hum || 0;
+            if (currentHum < stageConfig.humMin) {
+                humBadge.textContent = 'Too Dry';
+                humBadge.style.color = 'var(--warning)';
+            } else if (currentHum > stageConfig.humMax) {
+                humBadge.textContent = 'Too Humid';
+                humBadge.style.color = 'var(--danger)';
+            } else {
+                humBadge.textContent = 'Normal';
+                humBadge.style.color = 'var(--success)';
+            }
+        }
+
+        function updateStageInfo(stageConfig) {
+            const infoText = `${stageConfig.name}: Temp ${stageConfig.tempMin}-${stageConfig.tempMax}°C, Humidity ${stageConfig.humMin}-${stageConfig.humMax}%`;
+            document.getElementById('currentStageInfo').textContent = infoText;
+        }
+
+        function saveStageConfig() {
+            if (!isAuthenticated) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+            
+            if (!isConnected) {
+                showNotification('Not connected to MQTT', 'error');
+                return;
+            }
+            
+            const command = {
+                save_config: true,
+                stage: currentStage,
+                age: currentAge,
+                timestamp: Date.now(),
+                source: 'web'
+            };
+            
+            publishCommand('vquail/control', command);
+            showNotification('Stage configuration saved to device', 'success');
+            logMessage(`Saved stage config: ${LIFE_STAGES[currentStage].name}, Age: ${currentAge} days`, 'info');
+        }
+
+        function resetToAutoStage() {
+            if (!isAuthenticated) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+            
+            if (!isConnected) {
+                showNotification('Not connected to MQTT', 'error');
+                return;
+            }
+            
+            if (confirm('Reset to auto-detected life stage based on system uptime?')) {
+                const command = {
+                    auto_stage: true,
+                    timestamp: Date.now(),
+                    source: 'web'
+                };
+                
+                publishCommand('vquail/control', command);
+                showNotification('Auto-stage detection activated', 'info');
+                logMessage('Requested auto-stage detection', 'info');
+            }
+        }
+
+        function getStageInfo() {
+            const stageConfig = LIFE_STAGES[currentStage];
+            if (!stageConfig) return;
+            
+            const info = `
+                <strong>${stageConfig.name}</strong><br>
+                Age Range: ${stageConfig.minAge}-${stageConfig.maxAge} days<br>
+                Temperature: ${stageConfig.tempMin}-${stageConfig.tempMax}°C<br>
+                Humidity: ${stageConfig.humMin}-${stageConfig.humMax}%<br>
+                Current Age: ${currentAge} days<br>
+                Current Temp: ${systemState.temp || 0}°C<br>
+                Current Hum: ${systemState.hum || 0}%
+            `;
+            
+            showNotification(info, 'info');
         }
 
         // ================= UI UPDATES =================
@@ -1972,6 +2492,7 @@
             updateSystemInfo();
             updateAlarmDisplay();
             updateControlUI();
+            updateStageDisplay();
         }
 
         function updateSensorDisplays() {
@@ -2005,6 +2526,9 @@
             // Update progress bars
             document.getElementById('humProgress').style.width = 
                 Math.min(Math.max(systemState.hum, 0), 100) + '%';
+            
+            // Update stage badges based on current sensor readings
+            updateStageBadges(LIFE_STAGES[currentStage]);
         }
 
         function updateDeviceStates() {
