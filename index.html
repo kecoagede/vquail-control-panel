@@ -596,6 +596,15 @@
             color: var(--gray);
         }
 
+        .control-btn.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .control-btn.disabled:hover {
+            transform: none;
+        }
+
         .control-btn-icon {
             font-size: 28px;
         }
@@ -1181,6 +1190,21 @@
             from { transform: translateY(20px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
         }
+        
+        /* Loading Spinner */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -1567,11 +1591,11 @@
                     <div class="calibration-item">
                         <h4>Temperature Calibration</h4>
                         <div class="calibration-control">
-                            <button class="btn btn-danger btn-small" onclick="adjustCalibration('temp', -0.5)">
+                            <button class="btn btn-danger btn-small" onclick="debounceCalibration('temp', -0.5)">
                                 <i class="fas fa-minus"></i> 0.5°C
                             </button>
                             <div class="calibration-value" id="tempCalValue">0.0°C</div>
-                            <button class="btn btn-success btn-small" onclick="adjustCalibration('temp', 0.5)">
+                            <button class="btn btn-success btn-small" onclick="debounceCalibration('temp', 0.5)">
                                 <i class="fas fa-plus"></i> 0.5°C
                             </button>
                         </div>
@@ -1583,11 +1607,11 @@
                     <div class="calibration-item">
                         <h4>Humidity Calibration</h4>
                         <div class="calibration-control">
-                            <button class="btn btn-danger btn-small" onclick="adjustCalibration('hum', -0.5)">
+                            <button class="btn btn-danger btn-small" onclick="debounceCalibration('hum', -0.5)">
                                 <i class="fas fa-minus"></i> 0.5%
                             </button>
                             <div class="calibration-value" id="humCalValue">0.0%</div>
-                            <button class="btn btn-success btn-small" onclick="adjustCalibration('hum', 0.5)">
+                            <button class="btn btn-success btn-small" onclick="debounceCalibration('hum', 0.5)">
                                 <i class="fas fa-plus"></i> 0.5%
                             </button>
                         </div>
@@ -1766,7 +1790,7 @@
                 <span><i class="fas fa-shield-alt"></i> Secured Connection (TLS)</span>
                 <span><i class="fas fa-sync-alt"></i> Real-time Updates</span>
                 <span><i class="fas fa-mobile-alt"></i> Responsive Design</span>
-                <span><i class="fas fa-history"></i> Version 2.1.0</span>
+                <span><i class="fas fa-history"></i> Version 2.2.0</span>
             </div>
         </footer>
     </div>
@@ -1785,6 +1809,7 @@
         };
 
         let isAuthenticated = false;
+        let sessionTimeout = null;
 
         // Life stage configuration matching ESP32 code
         const LIFE_STAGES = {
@@ -1877,9 +1902,14 @@
                 isAuthenticated = true;
                 showLoginNotification('success', 'Login successful! Redirecting to dashboard...');
                 
-                // Store login state in sessionStorage
-                sessionStorage.setItem('vquail_authenticated', 'true');
-                sessionStorage.setItem('vquail_username', username);
+                // Store login state with expiration (8 hours)
+                const loginData = {
+                    authenticated: true,
+                    username: username,
+                    timestamp: Date.now(),
+                    expires: Date.now() + (8 * 60 * 60 * 1000) // 8 hours
+                };
+                localStorage.setItem('vquail_session', JSON.stringify(loginData));
                 
                 // Add login event to log
                 const loginTime = new Date().toLocaleTimeString();
@@ -1939,11 +1969,16 @@
                 }
                 
                 // Clear session storage
-                sessionStorage.removeItem('vquail_authenticated');
-                sessionStorage.removeItem('vquail_username');
+                localStorage.removeItem('vquail_session');
                 
                 // Reset authentication state
                 isAuthenticated = false;
+                
+                // Clear any session timeout
+                if (sessionTimeout) {
+                    clearTimeout(sessionTimeout);
+                    sessionTimeout = null;
+                }
                 
                 // Switch back to login page
                 document.getElementById('dashboardContainer').style.display = 'none';
@@ -1965,13 +2000,45 @@
         }
 
         function checkSession() {
-            const authenticated = sessionStorage.getItem('vquail_authenticated') === 'true';
-            if (authenticated) {
-                // User is already logged in, show dashboard
-                document.getElementById('loginContainer').style.display = 'none';
-                document.getElementById('dashboardContainer').style.display = 'block';
-                initializeDashboard();
+            try {
+                const sessionData = localStorage.getItem('vquail_session');
+                if (sessionData) {
+                    const session = JSON.parse(sessionData);
+                    const now = Date.now();
+                    
+                    // Check if session is still valid
+                    if (session.authenticated && session.expires > now) {
+                        isAuthenticated = true;
+                        
+                        // User is already logged in, show dashboard
+                        document.getElementById('loginContainer').style.display = 'none';
+                        document.getElementById('dashboardContainer').style.display = 'block';
+                        
+                        // Auto-connect to MQTT
+                        setTimeout(() => {
+                            initializeDashboard();
+                        }, 500);
+                        
+                        // Set auto-logout timer (8 hours from login)
+                        const timeLeft = session.expires - now;
+                        if (timeLeft > 0) {
+                            sessionTimeout = setTimeout(() => {
+                                showNotification('Session expired. Please login again.', 'warning');
+                                logout();
+                            }, timeLeft);
+                        }
+                        
+                        return true;
+                    } else {
+                        // Session expired, clear it
+                        localStorage.removeItem('vquail_session');
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking session:', error);
+                localStorage.removeItem('vquail_session');
             }
+            return false;
         }
 
         // Add shake animation
@@ -2047,6 +2114,36 @@
             lastUpdate: null,
             lastSync: '--:--'
         };
+
+        // ================= DEBOUNCE FUNCTIONS =================
+        let calibrationDebounceTimer = null;
+        const CALIBRATION_DEBOUNCE_TIME = 500; // 500ms debounce
+
+        function debounceCalibration(type, adjustment) {
+            if (calibrationDebounceTimer) {
+                clearTimeout(calibrationDebounceTimer);
+            }
+            
+            // Update UI immediately for better UX
+            if (type === 'temp') {
+                systemState.tempOffset += adjustment;
+                document.getElementById('tempCalValue').textContent = 
+                    systemState.tempOffset.toFixed(1) + '°C';
+                document.getElementById('tempOffset').textContent = 
+                    (systemState.tempOffset > 0 ? '+' : '') + systemState.tempOffset.toFixed(1) + '°C';
+            } else {
+                systemState.humOffset += adjustment;
+                document.getElementById('humCalValue').textContent = 
+                    systemState.humOffset.toFixed(1) + '%';
+                document.getElementById('humOffset').textContent = 
+                    (systemState.humOffset > 0 ? '+' : '') + systemState.humOffset.toFixed(1) + '%';
+            }
+            
+            calibrationDebounceTimer = setTimeout(() => {
+                adjustCalibration(type, adjustment);
+                calibrationDebounceTimer = null;
+            }, CALIBRATION_DEBOUNCE_TIME);
+        }
 
         // ================= DASHBOARD INITIALIZATION =================
         function initializeDashboard() {
@@ -2363,9 +2460,12 @@
             // Update stage buttons
             document.querySelectorAll('.stage-btn').forEach(btn => {
                 btn.classList.remove('active');
-                const stage = btn.getAttribute('onclick').match(/'([^']+)'/)[1];
-                if (stage === currentStage) {
-                    btn.classList.add('active');
+                const onclick = btn.getAttribute('onclick');
+                if (onclick) {
+                    const stage = onclick.match(/'([^']+)'/)[1];
+                    if (stage === currentStage) {
+                        btn.classList.add('active');
+                    }
                 }
             });
             
@@ -2538,6 +2638,9 @@
                 const state = btn.dataset.state === 'on';
                 btn.classList.toggle('active', state && systemState.fan);
                 btn.classList.toggle('inactive', !state && !systemState.fan);
+                // Disable buttons in auto mode
+                btn.disabled = systemState.autoMode;
+                btn.classList.toggle('disabled', systemState.autoMode);
             });
             
             // Heat state
@@ -2546,6 +2649,9 @@
                 const state = btn.dataset.state === 'on';
                 btn.classList.toggle('active', state && systemState.heat);
                 btn.classList.toggle('inactive', !state && !systemState.heat);
+                // Disable buttons in auto mode
+                btn.disabled = systemState.autoMode;
+                btn.classList.toggle('disabled', systemState.autoMode);
             });
             
             // Mode
@@ -2553,12 +2659,6 @@
             document.getElementById('autoModeBtn').classList.toggle('active', isAuto);
             document.getElementById('manualModeBtn').classList.toggle('active', !isAuto);
             document.getElementById('modeWarning').style.display = isAuto ? 'flex' : 'none';
-            
-            // Control buttons enabled state
-            const controlButtons = document.querySelectorAll('.control-btn');
-            controlButtons.forEach(btn => {
-                btn.disabled = isAuto;
-            });
         }
 
         function updateSystemInfo() {
@@ -2720,7 +2820,7 @@
             };
             
             publishCommand('vquail/calibration', command);
-            showNotification(`${type === 'temp' ? 'Temperature' : 'Humidity'} adjusted`, 'success');
+            showNotification(`${type === 'temp' ? 'Temperature' : 'Humidity'} calibration adjusted by ${adjustment}${type === 'temp' ? '°C' : '%'}`, 'success');
         }
 
         function resetCalibration() {
@@ -2742,7 +2842,7 @@
                 };
                 
                 publishCommand('vquail/calibration', command);
-                showNotification('Calibration reset', 'success');
+                showNotification('Calibration reset to factory defaults', 'success');
             }
         }
 
@@ -3021,8 +3121,12 @@
 
         // ================= EVENT LISTENERS =================
         document.addEventListener('DOMContentLoaded', () => {
-            // Check for saved session
-            checkSession();
+            // Check for saved session on page load
+            if (!checkSession()) {
+                // No valid session found, show login page
+                document.getElementById('loginContainer').style.display = 'flex';
+                document.getElementById('dashboardContainer').style.display = 'none';
+            }
             
             // Allow pressing Enter to login
             document.getElementById('password').addEventListener('keypress', (e) => {
@@ -3035,6 +3139,17 @@
                 if (e.key === 'Enter') {
                     login();
                 }
+            });
+            
+            // Add focus styles to form inputs
+            const inputs = document.querySelectorAll('.form-control');
+            inputs.forEach(input => {
+                input.addEventListener('focus', () => {
+                    input.parentElement.style.transform = 'translateY(-2px)';
+                });
+                input.addEventListener('blur', () => {
+                    input.parentElement.style.transform = 'translateY(0)';
+                });
             });
         });
 
@@ -3052,6 +3167,19 @@
                 publishStatus();
             }
         }, 60000);
+        
+        // Activity monitoring to keep session alive
+        document.addEventListener('mousemove', () => {
+            if (isAuthenticated) {
+                // Update session timestamp on activity
+                const sessionData = localStorage.getItem('vquail_session');
+                if (sessionData) {
+                    const session = JSON.parse(sessionData);
+                    session.timestamp = Date.now();
+                    localStorage.setItem('vquail_session', JSON.stringify(session));
+                }
+            }
+        });
     </script>
 </body>
 </html>
