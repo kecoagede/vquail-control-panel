@@ -432,7 +432,8 @@
                     "vquail/status/system"
                 ],
                 publish: "vquail/web/control",
-                calibration: "vquail/calibration"
+                calibration: "vquail/calibration",
+                request: "vquail/status/request"
             },
             stages: [
                 { name: "Brood W1", tempMin: 35, tempMax: 37, humMin: 60, humMax: 70 },
@@ -482,8 +483,8 @@
 
         // ============ MQTT FUNCTIONS ============
         function initMQTT() {
-            console.log("Connecting to MQTT...");
-            console.log("Host:", CONFIG.mqtt.host);
+            console.log("Connecting to HiveMQ TLS...");
+            console.log("Host:", CONFIG.mqtt.host + ":" + CONFIG.mqtt.port);
             console.log("Username:", CONFIG.mqtt.username);
             
             mqttClient = new Paho.MQTT.Client(
@@ -506,7 +507,7 @@
                 reconnect: true
             };
             
-            updateConnectionStatus("Connecting to MQTT...", "warning");
+            updateConnectionStatus("Connecting to HiveMQ TLS...", "warning");
             
             try {
                 mqttClient.connect(options);
@@ -528,11 +529,11 @@
                 console.log("Subscribed to:", topic);
             });
             
-            addLogEntry("Connected to MQTT broker", "success");
+            addLogEntry("Connected to HiveMQ TLS", "success");
             
             // Request full status update
             setTimeout(() => {
-                sendToMQTT({ request: "full" }, "vquail/status/request");
+                sendToMQTT({ request: "full" }, CONFIG.topics.request);
             }, 1000);
         }
 
@@ -827,7 +828,7 @@
         }
 
         function forceUpdate() {
-            if (sendToMQTT({ request: "full" }, "vquail/status/request")) {
+            if (sendToMQTT({ request: "full" }, CONFIG.topics.request)) {
                 addLogEntry("Requested system update", "control");
             }
         }
