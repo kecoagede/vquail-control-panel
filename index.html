@@ -432,23 +432,84 @@
         }
 
         .connection-debug {
-            margin-top: 15px;
-            padding: 15px;
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border: 2px solid var(--border-color);
             border-radius: 10px;
-            font-size: 0.9rem;
+        }
+
+        .debug-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .debug-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
         }
 
         .debug-btn {
-            margin-top: 10px;
             padding: 8px 15px;
-            background: var(--warning);
+            background: var(--info);
             color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
             font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .connection-methods {
+            margin-top: 15px;
+        }
+
+        .method-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            margin-bottom: 8px;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+        }
+
+        .method-status {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--gray);
+        }
+
+        .method-status.pending { background: var(--warning); animation: pulse 1s infinite; }
+        .method-status.success { background: var(--success); }
+        .method-status.failed { background: var(--danger); }
+        .method-status.active { background: var(--primary); box-shadow: 0 0 5px var(--primary); }
+
+        .method-details {
+            flex: 1;
+            font-size: 0.9rem;
+        }
+
+        .method-name {
+            font-weight: 600;
+        }
+
+        .method-url {
+            font-size: 0.8rem;
+            color: var(--gray);
+            word-break: break-all;
+        }
+
+        .current-method {
+            background: #e3f2fd;
+            border-color: var(--primary);
         }
 
         @media (max-width: 768px) {
@@ -471,6 +532,10 @@
                 flex-wrap: wrap;
                 justify-content: center;
             }
+            
+            .debug-buttons {
+                flex-direction: column;
+            }
         }
     </style>
 </head>
@@ -481,7 +546,7 @@
                 <i class="fas fa-dove logo-icon"></i>
                 <div class="logo-text">
                     <h1>VQuail Control Dashboard</h1>
-                    <p>Web Control Interface v2.0 - HiveMQ TLS (Port 8883)</p>
+                    <p>Multi-Connection Web Interface v3.0</p>
                 </div>
             </div>
             <div class="connection-status">
@@ -613,20 +678,37 @@
                     </button>
                 </div>
 
-                <!-- Connection Debug Section -->
+                <!-- Multi-Connection Debug Panel -->
                 <div class="connection-debug">
-                    <strong>Connection Debug:</strong>
-                    <div id="connectionDebugInfo">
-                        Using MQTT over TLS (Port 8883)<br>
-                        Host: 514ee1c5407448169298c78647ad26b9.s1.eu.hivemq.cloud<br>
-                        Status: <span id="debugStatus">Not connected</span>
+                    <div class="debug-header">
+                        <h3 style="margin: 0; color: var(--dark);">
+                            <i class="fas fa-plug"></i> Multi-Connection Tester
+                        </h3>
+                        <div style="display: flex; gap: 5px;">
+                            <span id="currentMethod" style="font-size: 0.9rem; color: var(--info); font-weight: 600;">
+                                No active connection
+                            </span>
+                        </div>
                     </div>
-                    <button class="debug-btn" onclick="testWebSocketConnection()">
-                        <i class="fas fa-wifi"></i> Test WebSocket
-                    </button>
-                    <button class="debug-btn" onclick="forceReconnect()" style="margin-left: 10px;">
-                        <i class="fas fa-plug"></i> Reconnect
-                    </button>
+                    
+                    <div class="debug-buttons">
+                        <button class="debug-btn" onclick="startMultiConnect()" id="connectAllBtn">
+                            <i class="fas fa-bolt"></i> Test All Connections
+                        </button>
+                        <button class="debug-btn" onclick="forceReconnect()" style="background: var(--warning);">
+                            <i class="fas fa-redo"></i> Reconnect
+                        </button>
+                        <button class="debug-btn" onclick="testWebSocket()" style="background: var(--primary);">
+                            <i class="fas fa-wifi"></i> Test WebSocket
+                        </button>
+                        <button class="debug-btn" onclick="showConnectionDetails()" style="background: var(--dark);">
+                            <i class="fas fa-info-circle"></i> Details
+                        </button>
+                    </div>
+                    
+                    <div class="connection-methods" id="connectionMethods">
+                        <!-- Methods will be dynamically added here -->
+                    </div>
                 </div>
             </div>
 
@@ -747,14 +829,14 @@
                 <div class="log-container" id="logContainer">
                     <div class="log-entry">
                         <span class="log-time">00:00:00</span>
-                        <span class="log-info">VQuail Dashboard initialized. Ready to connect...</span>
+                        <span class="log-info">VQuail Dashboard v3.0 initialized. Ready to connect...</span>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="footer">
-            <p>VQuail Control Dashboard v2.0 | ESP32-S3 with HiveMQ TLS (Port 8883) | Last Updated: <span id="lastUpdated">--</span></p>
+            <p>VQuail Control Dashboard v3.0 | ESP32-S3 with HiveMQ Multi-Connection | Active: <span id="activeConnection">None</span></p>
             <p style="margin-top: 5px; font-size: 0.8rem; opacity: 0.7;">
                 Temperature Range: Brooding (35-37°C) → Adult (20-24°C) | Humidity Range: 50-70%
             </p>
@@ -764,25 +846,11 @@
     <div id="notification" class="notification"></div>
 
     <script>
-        // ================= CONFIGURATION =================
-        const MQTT_CONFIG = {
-            host: '514ee1c5407448169298c78647ad26b9.s1.eu.hivemq.cloud',
-            port: 8883,  // MQTT over TLS (recommended)
-            username: 'vquail',
-            password: 'Vquail12345',
-            clientId: 'vquail-web-' + Math.random().toString(36).substr(2, 9),
-            protocol: 'wss',  // WebSocket Secure
-            reconnectPeriod: 5000,  // 5 seconds
-            connectTimeout: 10000,  // 10 seconds
-            // IMPORTANT: For HiveMQ Cloud with self-signed certs
-            rejectUnauthorized: false
-        };
-
-        // ================= STATE VARIABLES =================
+        // ================= GLOBAL STATE =================
         let mqttClient = null;
         let isConnected = false;
-        let connectionAttempts = 0;
-        let maxConnectionAttempts = 3;
+        let currentMethodIndex = -1;
+        let connectionTestInProgress = false;
         let lastUpdateTime = null;
         
         const systemState = {
@@ -810,142 +878,418 @@
             lastUpdated: '--:--'
         };
 
-        // ================= MQTT CONNECTION =================
-        function connectMQTT() {
-            updateStatus('mqtt', 'connecting');
-            connectionAttempts++;
+        // ================= ALL CONNECTION METHODS =================
+        const CONNECTION_METHODS = [
+            // Method 1: MQTT over TLS (Port 8883) - Standard
+            {
+                id: 'mqtt_tls_8883',
+                name: 'MQTT over TLS (Port 8883)',
+                description: 'Standard MQTT with TLS encryption',
+                host: '514ee1c5407448169298c78647ad26b9.s1.eu.hivemq.cloud',
+                port: 8883,
+                protocol: 'wss',
+                path: '/mqtt',
+                options: {
+                    username: 'vquail',
+                    password: 'Vquail12345',
+                    clientId: 'vquail-web-' + Math.random().toString(36).substr(2, 9),
+                    clean: true,
+                    reconnectPeriod: 5000,
+                    connectTimeout: 10000,
+                    rejectUnauthorized: false,
+                    resubscribe: true
+                },
+                url: 'wss://514ee1c5407448169298c78647ad26b9.s1.eu.hivemq.cloud:8883/mqtt',
+                status: 'pending',
+                lastTested: null
+            },
+            // Method 2: WebSocket (Port 8884) - Plain WebSocket
+            {
+                id: 'websocket_8884',
+                name: 'WebSocket (Port 8884)',
+                description: 'Plain WebSocket without TLS',
+                host: '514ee1c5407448169298c78647ad26b9.s1.eu.hivemq.cloud',
+                port: 8884,
+                protocol: 'ws',
+                path: '/mqtt',
+                options: {
+                    username: 'vquail',
+                    password: 'Vquail12345',
+                    clientId: 'vquail-web-' + Math.random().toString(36).substr(2, 9),
+                    clean: true,
+                    reconnectPeriod: 5000,
+                    connectTimeout: 10000,
+                    resubscribe: true
+                },
+                url: 'ws://514ee1c5407448169298c78647ad26b9.s1.eu.hivemq.cloud:8884/mqtt',
+                status: 'pending',
+                lastTested: null
+            },
+            // Method 3: MQTT over TLS (Port 8883) - Alternative URL
+            {
+                id: 'mqtt_tls_alt',
+                name: 'MQTT TLS (Direct URL)',
+                description: 'Direct MQTT TLS connection',
+                host: '514ee1c5407448169298c78647ad26b9.s1.eu.hivemq.cloud',
+                port: 8883,
+                protocol: 'wss',
+                path: '',
+                options: {
+                    username: 'vquail',
+                    password: 'Vquail12345',
+                    clientId: 'vquail-web-' + Math.random().toString(36).substr(2, 9),
+                    clean: true,
+                    reconnectPeriod: 5000,
+                    connectTimeout: 10000,
+                    rejectUnauthorized: false,
+                    resubscribe: true
+                },
+                url: 'wss://514ee1c5407448169298c78647ad26b9.s1.eu.hivemq.cloud:8883',
+                status: 'pending',
+                lastTested: null
+            },
+            // Method 4: WebSocket (Port 8884) - Alternative URL
+            {
+                id: 'websocket_alt',
+                name: 'WebSocket (Direct URL)',
+                description: 'Direct WebSocket connection',
+                host: '514ee1c5407448169298c78647ad26b9.s1.eu.hivemq.cloud',
+                port: 8884,
+                protocol: 'ws',
+                path: '',
+                options: {
+                    username: 'vquail',
+                    password: 'Vquail12345',
+                    clientId: 'vquail-web-' + Math.random().toString(36).substr(2, 9),
+                    clean: true,
+                    reconnectPeriod: 5000,
+                    connectTimeout: 10000,
+                    resubscribe: true
+                },
+                url: 'ws://514ee1c5407448169298c78647ad26b9.s1.eu.hivemq.cloud:8884',
+                status: 'pending',
+                lastTested: null
+            },
+            // Method 5: MQTT over WebSocket Secure (Port 443)
+            {
+                id: 'wss_443',
+                name: 'WSS (Port 443)',
+                description: 'WebSocket Secure on HTTPS port',
+                host: '514ee1c5407448169298c78647ad26b9.s1.eu.hivemq.cloud',
+                port: 443,
+                protocol: 'wss',
+                path: '/mqtt',
+                options: {
+                    username: 'vquail',
+                    password: 'Vquail12345',
+                    clientId: 'vquail-web-' + Math.random().toString(36).substr(2, 9),
+                    clean: true,
+                    reconnectPeriod: 5000,
+                    connectTimeout: 10000,
+                    rejectUnauthorized: false,
+                    resubscribe: true
+                },
+                url: 'wss://514ee1c5407448169298c78647ad26b9.s1.eu.hivemq.cloud:443/mqtt',
+                status: 'pending',
+                lastTested: null
+            }
+        ];
+
+        // ================= INITIALIZATION =================
+        document.addEventListener('DOMContentLoaded', () => {
+            logMessage('VQuail Dashboard v3.0 initialized', 'info');
+            logMessage('Testing all available HiveMQ connection methods...', 'info');
             
-            logMessage(`Connection attempt ${connectionAttempts}/${maxConnectionAttempts}`, 'info');
-            document.getElementById('debugStatus').textContent = 'Connecting...';
-            document.getElementById('debugStatus').style.color = 'var(--warning)';
+            // Render connection methods UI
+            renderConnectionMethods();
             
-            // Prepare connection options
-            const options = {
-                username: MQTT_CONFIG.username,
-                password: MQTT_CONFIG.password,
-                clientId: MQTT_CONFIG.clientId,
-                clean: true,
-                reconnectPeriod: MQTT_CONFIG.reconnectPeriod,
-                connectTimeout: MQTT_CONFIG.connectTimeout,
-                rejectUnauthorized: MQTT_CONFIG.rejectUnauthorized,
-                protocol: MQTT_CONFIG.protocol,
-                resubscribe: true
-            };
+            // Initialize mode
+            toggleMode(true);
             
-            // Construct WebSocket URL for MQTT over TLS
-            const wsUrl = `wss://${MQTT_CONFIG.host}:${MQTT_CONFIG.port}/mqtt`;
+            // Start testing all connections
+            setTimeout(() => {
+                startMultiConnect();
+            }, 1000);
+        });
+
+        // ================= CONNECTION METHODS UI =================
+        function renderConnectionMethods() {
+            const container = document.getElementById('connectionMethods');
+            container.innerHTML = '';
             
-            logMessage(`Connecting to: ${wsUrl}`, 'debug');
-            
-            try {
-                // Create MQTT client with proper error handling
-                mqttClient = mqtt.connect(wsUrl, options);
+            CONNECTION_METHODS.forEach((method, index) => {
+                const methodElement = document.createElement('div');
+                methodElement.className = `method-item ${currentMethodIndex === index ? 'current-method' : ''}`;
+                methodElement.id = `method-${method.id}`;
                 
-                // ============ EVENT HANDLERS ============
+                const statusClass = method.status || 'pending';
                 
-                // On successful connection
-                mqttClient.on('connect', () => {
+                methodElement.innerHTML = `
+                    <div class="method-status ${statusClass}"></div>
+                    <div class="method-details">
+                        <div class="method-name">${method.name}</div>
+                        <div class="method-url">${method.url}</div>
+                    </div>
+                    <button onclick="testSingleMethod(${index})" style="background: none; border: 1px solid var(--gray); border-radius: 3px; padding: 2px 8px; font-size: 0.8rem; cursor: pointer;">
+                        Test
+                    </button>
+                `;
+                
+                container.appendChild(methodElement);
+            });
+        }
+
+        function updateMethodStatus(index, status, message = '') {
+            if (index >= 0 && index < CONNECTION_METHODS.length) {
+                CONNECTION_METHODS[index].status = status;
+                CONNECTION_METHODS[index].lastTested = new Date();
+                
+                const methodElement = document.getElementById(`method-${CONNECTION_METHODS[index].id}`);
+                if (methodElement) {
+                    const statusDot = methodElement.querySelector('.method-status');
+                    statusDot.className = `method-status ${status}`;
+                    
+                    if (status === 'active') {
+                        methodElement.classList.add('current-method');
+                    } else {
+                        methodElement.classList.remove('current-method');
+                    }
+                }
+                
+                if (message) {
+                    logMessage(`${CONNECTION_METHODS[index].name}: ${message}`, 
+                              status === 'success' || status === 'active' ? 'success' : 
+                              status === 'failed' ? 'error' : 'info');
+                }
+            }
+        }
+
+        // ================= MULTI-CONNECTION TESTER =================
+        function startMultiConnect() {
+            if (connectionTestInProgress) {
+                logMessage('Connection test already in progress', 'warning');
+                return;
+            }
+            
+            connectionTestInProgress = true;
+            document.getElementById('connectAllBtn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+            document.getElementById('connectAllBtn').disabled = true;
+            
+            logMessage('=== Starting multi-connection test ===', 'info');
+            
+            // Reset all methods to pending
+            CONNECTION_METHODS.forEach((method, index) => {
+                updateMethodStatus(index, 'pending');
+            });
+            
+            // Test methods sequentially
+            testMethodSequence(0);
+        }
+
+        function testMethodSequence(index) {
+            if (index >= CONNECTION_METHODS.length) {
+                // All methods tested
+                connectionTestInProgress = false;
+                document.getElementById('connectAllBtn').innerHTML = '<i class="fas fa-bolt"></i> Test All Connections';
+                document.getElementById('connectAllBtn').disabled = false;
+                
+                if (currentMethodIndex === -1) {
+                    logMessage('=== All connection methods failed ===', 'error');
+                    showNotification('All connection methods failed. Check HiveMQ settings.', 'error');
+                } else {
+                    logMessage('=== Connection test complete ===', 'success');
+                    showNotification(`Connected via ${CONNECTION_METHODS[currentMethodIndex].name}`, 'success');
+                }
+                return;
+            }
+            
+            logMessage(`Testing method ${index + 1}/${CONNECTION_METHODS.length}: ${CONNECTION_METHODS[index].name}`, 'info');
+            updateMethodStatus(index, 'pending', 'Testing...');
+            
+            // Test this method
+            testSingleMethod(index, () => {
+                // Move to next method after delay
+                setTimeout(() => {
+                    testMethodSequence(index + 1);
+                }, 1000);
+            });
+        }
+
+        function testSingleMethod(index, callback) {
+            const method = CONNECTION_METHODS[index];
+            
+            // Create a test client for this method
+            const testClient = mqtt.connect(method.url, method.options);
+            
+            const timeout = setTimeout(() => {
+                testClient.end();
+                updateMethodStatus(index, 'failed', 'Timeout');
+                if (callback) callback();
+            }, 5000);
+            
+            testClient.on('connect', () => {
+                clearTimeout(timeout);
+                
+                // Check if we should use this method
+                if (currentMethodIndex === -1 || index < currentMethodIndex) {
+                    // This is a better (or first successful) method
+                    if (currentMethodIndex >= 0) {
+                        // Disconnect from current method
+                        if (mqttClient) {
+                            mqttClient.end();
+                        }
+                    }
+                    
+                    currentMethodIndex = index;
+                    updateMethodStatus(index, 'active', 'Connected and selected');
+                    document.getElementById('currentMethod').textContent = method.name;
+                    document.getElementById('activeConnection').textContent = method.name;
+                    
+                    // Use this client as our main connection
+                    mqttClient = testClient;
+                    setupMainClientHandlers();
                     isConnected = true;
-                    connectionAttempts = 0; // Reset counter on success
                     updateStatus('mqtt', 'connected');
-                    document.getElementById('debugStatus').textContent = 'Connected ✓';
-                    document.getElementById('debugStatus').style.color = 'var(--success)';
                     
-                    logMessage('✓ Connected to HiveMQ Cloud via TLS (Port 8883)', 'success');
-                    showNotification('Connected to VQuail System', 'success');
-                    
-                    // Subscribe to ALL vquail topics for comprehensive monitoring
-                    const topics = [
-                        'vquail/#',  // All topics
-                        'vquail/status/#',
-                        'vquail/control/#',
-                        'vquail/calibration/#',
-                        'vquail/web/#'  // Specifically for web control
-                    ];
-                    
-                    topics.forEach(topic => {
-                        mqttClient.subscribe(topic, { qos: 1 }, (err) => {
-                            if (!err) {
-                                logMessage(`Subscribed to: ${topic}`, 'debug');
-                            } else {
-                                logMessage(`Subscription error for ${topic}: ${err.message}`, 'error');
-                            }
-                        });
-                    });
-                    
-                    // Request full system status immediately
+                    // Request status update
                     setTimeout(() => {
                         requestFullStatus();
                     }, 1000);
-                });
-                
-                // On incoming messages
-                mqttClient.on('message', (topic, message) => {
-                    const msg = message.toString();
-                    handleMQTTMessage(topic, msg);
-                });
-                
-                // On connection error
-                mqttClient.on('error', (error) => {
-                    console.error('MQTT Error:', error);
-                    logMessage(`✗ MQTT Error: ${error.message}`, 'error');
-                    updateStatus('mqtt', 'disconnected');
-                    document.getElementById('debugStatus').textContent = `Error: ${error.message}`;
-                    document.getElementById('debugStatus').style.color = 'var(--danger)';
                     
-                    if (connectionAttempts >= maxConnectionAttempts) {
-                        logMessage('Max connection attempts reached. Use "Reconnect" button to try again.', 'warning');
-                        showNotification('Connection failed. Check credentials and network.', 'error');
-                    }
-                });
-                
-                // On connection close
-                mqttClient.on('close', () => {
-                    if (isConnected) {
-                        isConnected = false;
-                        logMessage('Disconnected from MQTT broker', 'warning');
-                        updateStatus('mqtt', 'disconnected');
-                        document.getElementById('debugStatus').textContent = 'Disconnected';
-                        document.getElementById('debugStatus').style.color = 'var(--danger)';
-                    }
-                });
-                
-                // On reconnect
-                mqttClient.on('reconnect', () => {
-                    logMessage('Reconnecting to MQTT...', 'info');
-                    updateStatus('mqtt', 'connecting');
-                    document.getElementById('debugStatus').textContent = 'Reconnecting...';
-                    document.getElementById('debugStatus').style.color = 'var(--warning)';
-                });
-                
-                // On offline
-                mqttClient.on('offline', () => {
-                    logMessage('MQTT client went offline', 'warning');
-                    updateStatus('mqtt', 'disconnected');
-                    document.getElementById('debugStatus').textContent = 'Offline';
-                    document.getElementById('debugStatus').style.color = 'var(--danger)';
-                });
-                
-                // On end
-                mqttClient.on('end', () => {
-                    logMessage('MQTT connection ended', 'info');
-                    updateStatus('mqtt', 'disconnected');
-                    document.getElementById('debugStatus').textContent = 'Ended';
-                    document.getElementById('debugStatus').style.color = 'var(--danger)';
-                });
-                
-            } catch (error) {
-                console.error('Connection setup error:', error);
-                logMessage(`✗ Connection setup failed: ${error.message}`, 'error');
-                updateStatus('mqtt', 'disconnected');
-                document.getElementById('debugStatus').textContent = `Setup error: ${error.message}`;
-                document.getElementById('debugStatus').style.color = 'var(--danger)';
-                
-                if (connectionAttempts < maxConnectionAttempts) {
-                    logMessage(`Retrying in 3 seconds... (${connectionAttempts}/${maxConnectionAttempts})`, 'info');
-                    setTimeout(connectMQTT, 3000);
+                } else {
+                    // We already have a working connection, just note this method works
+                    updateMethodStatus(index, 'success', 'Works (but using better method)');
+                    testClient.end();
                 }
+                
+                if (callback) callback();
+            });
+            
+            testClient.on('error', (error) => {
+                clearTimeout(timeout);
+                updateMethodStatus(index, 'failed', `Error: ${error.message}`);
+                testClient.end();
+                if (callback) callback();
+            });
+        }
+
+        function setupMainClientHandlers() {
+            if (!mqttClient) return;
+            
+            mqttClient.on('message', (topic, message) => {
+                const msg = message.toString();
+                handleMQTTMessage(topic, msg);
+            });
+            
+            mqttClient.on('error', (error) => {
+                console.error('Main client error:', error);
+                logMessage(`Main connection error: ${error.message}`, 'error');
+                isConnected = false;
+                updateStatus('mqtt', 'disconnected');
+                updateMethodStatus(currentMethodIndex, 'failed', `Error: ${error.message}`);
+                currentMethodIndex = -1;
+                
+                // Try to reconnect with another method
+                setTimeout(() => {
+                    startMultiConnect();
+                }, 3000);
+            });
+            
+            mqttClient.on('close', () => {
+                if (isConnected) {
+                    isConnected = false;
+                    logMessage('Main connection closed', 'warning');
+                    updateStatus('mqtt', 'disconnected');
+                }
+            });
+            
+            mqttClient.on('reconnect', () => {
+                logMessage('Main client reconnecting...', 'info');
+                updateStatus('mqtt', 'connecting');
+            });
+            
+            // Subscribe to topics
+            mqttClient.subscribe('vquail/#', { qos: 1 }, (err) => {
+                if (!err) {
+                    logMessage('Subscribed to vquail/#', 'success');
+                }
+            });
+        }
+
+        // ================= WEB SOCKET TEST =================
+        function testWebSocket() {
+            logMessage('Testing raw WebSocket connections...', 'info');
+            
+            const testUrls = [
+                'wss://514ee1c5407448169298c78647ad26b9.s1.eu.hivemq.cloud:8883/mqtt',
+                'ws://514ee1c5407448169298c78647ad26b9.s1.eu.hivemq.cloud:8884/mqtt',
+                'wss://514ee1c5407448169298c78647ad26b9.s1.eu.hivemq.cloud:443/mqtt'
+            ];
+            
+            testUrls.forEach(url => {
+                try {
+                    const ws = new WebSocket(url);
+                    
+                    ws.onopen = () => {
+                        logMessage(`✓ WebSocket OK: ${url}`, 'success');
+                        ws.close();
+                    };
+                    
+                    ws.onerror = (error) => {
+                        logMessage(`✗ WebSocket Error: ${url}`, 'error');
+                    };
+                    
+                    ws.onclose = () => {
+                        logMessage(`WebSocket closed: ${url}`, 'debug');
+                    };
+                    
+                    setTimeout(() => {
+                        if (ws.readyState === WebSocket.CONNECTING) {
+                            logMessage(`✗ WebSocket Timeout: ${url}`, 'warning');
+                            ws.close();
+                        }
+                    }, 5000);
+                    
+                } catch (error) {
+                    logMessage(`✗ WebSocket Exception: ${url} - ${error.message}`, 'error');
+                }
+            });
+        }
+
+        // ================= FORCE RECONNECT =================
+        function forceReconnect() {
+            logMessage('Forcing reconnection...', 'info');
+            
+            if (mqttClient) {
+                mqttClient.end();
             }
+            
+            isConnected = false;
+            currentMethodIndex = -1;
+            updateStatus('mqtt', 'disconnected');
+            
+            // Reset all methods
+            CONNECTION_METHODS.forEach((method, index) => {
+                updateMethodStatus(index, 'pending');
+            });
+            
+            // Start new connection test
+            setTimeout(() => {
+                startMultiConnect();
+            }, 1000);
+        }
+
+        // ================= CONNECTION DETAILS =================
+        function showConnectionDetails() {
+            logMessage('=== Connection Details ===', 'info');
+            logMessage(`Active method: ${currentMethodIndex >= 0 ? CONNECTION_METHODS[currentMethodIndex].name : 'None'}`, 'info');
+            logMessage(`Connected: ${isConnected ? 'Yes' : 'No'}`, 'info');
+            logMessage(`Client ID: ${mqttClient ? mqttClient.options.clientId : 'None'}`, 'info');
+            
+            CONNECTION_METHODS.forEach((method, index) => {
+                const status = method.status || 'not tested';
+                logMessage(`${index + 1}. ${method.name}: ${status}`, 'debug');
+            });
         }
 
         // ================= MESSAGE HANDLING =================
@@ -954,25 +1298,14 @@
                 const data = JSON.parse(message);
                 const now = new Date();
                 
-                // Log all messages for debugging
-                logMessage(`[${topic}] Received ${Object.keys(data).length} fields`, 'debug');
-                
-                // Handle different topics
-                if (topic.includes('status/device') || topic.includes('status/sensors')) {
-                    updateSystemState(data);
-                } else if (topic.includes('control/source')) {
-                    updateControlSource(data);
-                } else if (topic.includes('calibration/')) {
-                    updateCalibration(data);
-                } else if (topic.includes('test')) {
-                    logMessage(`Test response: ${JSON.stringify(data)}`, 'debug');
-                }
+                // Update system state
+                updateSystemState(data);
                 
                 // Update last update time
                 lastUpdateTime = now;
                 
             } catch (error) {
-                logMessage(`Error parsing message from ${topic}: ${error.message}`, 'error');
+                logMessage(`Error parsing message: ${error.message}`, 'error');
             }
         }
 
@@ -980,14 +1313,14 @@
             const now = new Date();
             lastUpdateTime = now;
             
-            // Update all state variables from received data
+            // Update all state variables
             Object.keys(data).forEach(key => {
                 if (systemState[key] !== undefined && data[key] !== undefined) {
                     systemState[key] = data[key];
                 }
             });
             
-            // Always update these critical fields
+            // Always update critical fields
             if (data.temp !== undefined) systemState.temp = data.temp;
             if (data.hum !== undefined) systemState.hum = data.hum;
             if (data.fan !== undefined) systemState.fan = data.fan;
@@ -1044,7 +1377,7 @@
             updateStatus('wifi', systemState.wifi ? 'connected' : 'disconnected');
             updateStatus('sensor', systemState.sensor ? 'connected' : 'disconnected');
             
-            // Temperature/Humidity stage indicators
+            // Stage indicators
             updateTemperatureStage(systemState.temp);
             updateHumidityStage(systemState.hum);
             
@@ -1069,11 +1402,8 @@
                 document.getElementById('alarmMessage').textContent = systemState.alarmMessage;
                 document.getElementById('alarmSource').textContent = 'Source: ' + systemState.alarmSource;
                 
-                // Add blinking effect for critical alarms
                 if (systemState.alarmMessage.toLowerCase().includes('critical')) {
                     container.style.animation = 'pulse 1s infinite';
-                } else {
-                    container.style.animation = 'none';
                 }
             } else {
                 container.style.display = 'none';
@@ -1295,7 +1625,6 @@
                 return;
             }
             
-            // Send a test command to trigger status update
             sendTestCommand();
             showNotification('Alarm clear requested', 'info');
             logMessage('Alarm clear requested', 'info');
@@ -1323,8 +1652,6 @@
                     console.error('Publish error:', error);
                     logMessage(`Publish failed: ${error.message}`, 'error');
                     showNotification('Command failed to send', 'error');
-                } else {
-                    logMessage(`Published to ${topic}`, 'debug');
                 }
             });
         }
@@ -1334,9 +1661,7 @@
             const dot = element.querySelector('.status-dot');
             const text = element.querySelector('span');
             
-            // Remove all status classes
-            dot.classList.remove('connected', 'disconnected', 'connecting');
-            dot.classList.add(status);
+            dot.className = 'status-dot ' + status;
             
             switch(type) {
                 case 'mqtt':
@@ -1351,36 +1676,23 @@
             }
         }
 
-        function updateControlSource(data) {
-            if (data.channel) {
-                systemState.controlChannel = data.channel;
-                const controlElement = document.getElementById('currentControl');
-                controlElement.textContent = systemState.controlChannel;
-                
-                // Color coding
-                switch(systemState.controlChannel) {
-                    case 'WEB':
-                        controlElement.style.color = 'var(--warning)';
-                        break;
-                    case 'TFT':
-                        controlElement.style.color = 'var(--success)';
-                        break;
-                    case 'AUTO':
-                        controlElement.style.color = 'var(--info)';
-                        break;
-                    default:
-                        controlElement.style.color = 'inherit';
-                }
-            }
+        function getTemperatureColor(temp) {
+            if (temp < 20) return 'var(--info)';
+            if (temp < 28) return 'var(--success)';
+            if (temp < 35) return 'var(--warning)';
+            return 'var(--danger)';
         }
 
-        function updateCalibration(data) {
-            if (data.temp_offset !== undefined) {
-                systemState.tempOffset = data.temp_offset;
-            }
-            if (data.hum_offset !== undefined) {
-                systemState.humOffset = data.hum_offset;
-            }
+        function formatUptime(seconds) {
+            if (!seconds || isNaN(seconds)) return '--';
+            
+            const days = Math.floor(seconds / 86400);
+            const hours = Math.floor((seconds % 86400) / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            
+            if (days > 0) return `${days}d ${hours}h`;
+            if (hours > 0) return `${hours}h ${minutes}m`;
+            return `${minutes}m`;
         }
 
         function logMessage(message, type = 'info') {
@@ -1416,90 +1728,13 @@
             }, 3000);
         }
 
-        function getTemperatureColor(temp) {
-            if (temp < 20) return 'var(--info)';
-            if (temp < 28) return 'var(--success)';
-            if (temp < 35) return 'var(--warning)';
-            return 'var(--danger)';
-        }
-
-        function formatUptime(seconds) {
-            if (!seconds || isNaN(seconds)) return '--';
-            
-            const days = Math.floor(seconds / 86400);
-            const hours = Math.floor((seconds % 86400) / 3600);
-            const minutes = Math.floor((seconds % 3600) / 60);
-            
-            if (days > 0) return `${days}d ${hours}h`;
-            if (hours > 0) return `${hours}h ${minutes}m`;
-            return `${minutes}m`;
-        }
-
-        // ================= DEBUG FUNCTIONS =================
-        function testWebSocketConnection() {
-            logMessage('Testing WebSocket connection...', 'info');
-            
-            const testWs = new WebSocket(`wss://${MQTT_CONFIG.host}:${MQTT_CONFIG.port}/mqtt`);
-            
-            testWs.onopen = () => {
-                logMessage('✓ WebSocket connection successful', 'success');
-                testWs.close();
-            };
-            
-            testWs.onerror = (error) => {
-                logMessage('✗ WebSocket connection failed', 'error');
-            };
-            
-            testWs.onclose = () => {
-                logMessage('WebSocket test completed', 'info');
-            };
-            
-            // Timeout after 5 seconds
-            setTimeout(() => {
-                if (testWs.readyState === WebSocket.CONNECTING) {
-                    logMessage('✗ WebSocket connection timeout', 'warning');
-                    testWs.close();
-                }
-            }, 5000);
-        }
-
-        function forceReconnect() {
-            if (mqttClient) {
-                logMessage('Forcing MQTT reconnection...', 'info');
-                mqttClient.end();
-                setTimeout(connectMQTT, 1000);
-            } else {
-                connectMQTT();
+        // Auto-reconnect if disconnected
+        setInterval(() => {
+            if (!isConnected && !connectionTestInProgress) {
+                logMessage('Auto-reconnecting...', 'info');
+                forceReconnect();
             }
-        }
-
-        // ================= INITIALIZATION =================
-        document.addEventListener('DOMContentLoaded', () => {
-            logMessage('VQuail Dashboard v2.0 initialized', 'info');
-            logMessage(`Connecting to: ${MQTT_CONFIG.host}:${MQTT_CONFIG.port}`, 'info');
-            
-            // Initialize mode
-            toggleMode(true);
-            
-            // Start connection
-            setTimeout(connectMQTT, 1000);
-            
-            // Auto-reconnect if disconnected for too long
-            setInterval(() => {
-                if (!isConnected && connectionAttempts < maxConnectionAttempts) {
-                    logMessage('Auto-reconnecting...', 'info');
-                    connectMQTT();
-                }
-            }, 30000); // Every 30 seconds
-        });
-
-        // Handle page visibility
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden && isConnected) {
-                // Page became visible, request fresh status
-                requestFullStatus();
-            }
-        });
+        }, 60000); // Every 60 seconds
     </script>
 </body>
 </html>
