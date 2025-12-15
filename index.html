@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VQuail Monitoring Dashboard</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@300;400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
     <style>
@@ -47,6 +47,11 @@
             --bg-secondary: #1e293b;
             --bg-card: #1e293b;
             --bg-card-light: rgba(255, 255, 255, 0.05);
+            
+            /* Text Colors */
+            --text-primary: #ffffff;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
             
             /* Shadows */
             --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -102,6 +107,7 @@
             --bg-card: #1e293b;
             --text-primary: #ffffff;
             --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
         }
         
         /* Light Theme */
@@ -112,6 +118,7 @@
             --bg-card-light: rgba(0, 0, 0, 0.03);
             --text-primary: #1e293b;
             --text-secondary: #475569;
+            --text-muted: #64748b;
             --border-color: rgba(0, 0, 0, 0.1);
             --border-color-light: rgba(0, 0, 0, 0.05);
             --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
@@ -482,6 +489,7 @@
             border-radius: var(--border-radius-md);
             transition: var(--transition-fast);
             font-weight: 500;
+            cursor: pointer;
         }
 
         .nav-link:hover {
@@ -665,9 +673,27 @@
             box-shadow: 0 8px 25px rgba(247, 37, 133, 0.3);
         }
 
+        .action-btn.success {
+            background: var(--success-gradient);
+        }
+
+        .action-btn.warning {
+            background: var(--warning-gradient);
+        }
+
         /* Content Area */
         .content-area {
             padding: var(--spacing-xl);
+        }
+
+        /* =========== DASHBOARD SECTIONS =========== */
+        .dashboard-section {
+            display: none;
+            animation: slideUp 0.3s ease;
+        }
+
+        .dashboard-section.active {
+            display: block;
         }
 
         /* =========== DASHBOARD CARDS =========== */
@@ -767,16 +793,26 @@
             padding: var(--spacing-xl);
         }
 
-        /* Sensor Card Specific */
+        /* Sensor Card Specific - FIXED FOR BETTER VISIBILITY */
+        .sensor-value-container {
+            position: relative;
+            margin-bottom: var(--spacing-lg);
+        }
+
         .sensor-value-large {
             font-size: var(--font-size-3xl);
             font-weight: 800;
             font-family: 'Roboto Mono', monospace;
             line-height: 1;
             margin-bottom: var(--spacing-sm);
-            background: linear-gradient(135deg, #fff, #e0e7ff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            /* High contrast text color */
+            color: var(--text-primary);
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        [data-theme="light"] .sensor-value-large {
+            color: var(--dark);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
 
         .sensor-unit {
@@ -812,6 +848,7 @@
             font-size: var(--font-size-base);
             font-weight: 600;
             font-family: 'Roboto Mono', monospace;
+            color: var(--text-primary);
         }
 
         /* Control Card Specific */
@@ -1065,6 +1102,7 @@
             font-family: 'Roboto Mono', monospace;
             text-align: center;
             margin: var(--spacing-md) 0;
+            color: var(--text-primary);
         }
 
         .calibration-buttons {
@@ -1216,6 +1254,7 @@
             font-size: var(--font-size-base);
             font-weight: 600;
             font-family: 'Roboto Mono', monospace;
+            color: var(--text-primary);
         }
 
         /* =========== NOTIFICATIONS =========== */
@@ -1512,6 +1551,10 @@
             white-space: nowrap;
         }
         
+        .grid {
+            display: grid;
+        }
+        
         /* Loading Spinner */
         .spinner {
             display: inline-block;
@@ -1755,19 +1798,19 @@
                     <h3 class="nav-section-title">Monitoring</h3>
                     <ul class="nav-list">
                         <li class="nav-item">
-                            <a href="#dashboard" class="nav-link active" onclick="showSection('dashboard')">
+                            <a class="nav-link active" onclick="showSection('dashboard')">
                                 <i class="fas fa-tachometer-alt"></i>
                                 <span>Dashboard</span>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="#sensors" class="nav-link" onclick="showSection('sensors')">
+                            <a class="nav-link" onclick="showSection('sensors')">
                                 <i class="fas fa-thermometer-half"></i>
                                 <span>Sensors</span>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="#controls" class="nav-link" onclick="showSection('controls')">
+                            <a class="nav-link" onclick="showSection('controls')">
                                 <i class="fas fa-sliders-h"></i>
                                 <span>Controls</span>
                             </a>
@@ -1779,19 +1822,19 @@
                     <h3 class="nav-section-title">Management</h3>
                     <ul class="nav-list">
                         <li class="nav-item">
-                            <a href="#lifecycle" class="nav-link" onclick="showSection('lifecycle')">
+                            <a class="nav-link" onclick="showSection('lifecycle')">
                                 <i class="fas fa-seedling"></i>
                                 <span>Life Cycle</span>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="#calibration" class="nav-link" onclick="showSection('calibration')">
+                            <a class="nav-link" onclick="showSection('calibration')">
                                 <i class="fas fa-tools"></i>
                                 <span>Calibration</span>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="#alarms" class="nav-link" onclick="showSection('alarms')">
+                            <a class="nav-link" onclick="showSection('alarms')">
                                 <i class="fas fa-exclamation-triangle"></i>
                                 <span>Alarms & Logs</span>
                             </a>
@@ -1803,13 +1846,13 @@
                     <h3 class="nav-section-title">System</h3>
                     <ul class="nav-list">
                         <li class="nav-item">
-                            <a href="#settings" class="nav-link" onclick="showSection('settings')">
+                            <a class="nav-link" onclick="showSection('settings')">
                                 <i class="fas fa-cog"></i>
                                 <span>Settings</span>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="#diagnostics" class="nav-link" onclick="showSection('diagnostics')">
+                            <a class="nav-link" onclick="showSection('diagnostics')">
                                 <i class="fas fa-wrench"></i>
                                 <span>Diagnostics</span>
                             </a>
@@ -1883,9 +1926,11 @@
                                 <div class="card-badge" id="tempStage">Optimal</div>
                             </div>
                             <div class="card-body">
-                                <div class="sensor-value-large">
-                                    <span id="temperatureValue">--</span>
-                                    <span class="sensor-unit">°C</span>
+                                <div class="sensor-value-container">
+                                    <div class="sensor-value-large">
+                                        <span id="temperatureValue">--</span>
+                                        <span class="sensor-unit">°C</span>
+                                    </div>
                                 </div>
                                 <div class="progress-bar">
                                     <div class="progress-fill" id="tempProgress" style="width: 50%;"></div>
@@ -1926,9 +1971,11 @@
                                 <div class="card-badge" id="humStage">Normal</div>
                             </div>
                             <div class="card-body">
-                                <div class="sensor-value-large">
-                                    <span id="humidityValue">--</span>
-                                    <span class="sensor-unit">%</span>
+                                <div class="sensor-value-container">
+                                    <div class="sensor-value-large">
+                                        <span id="humidityValue">--</span>
+                                        <span class="sensor-unit">%</span>
+                                    </div>
                                 </div>
                                 <div class="progress-bar">
                                     <div class="progress-fill" id="humProgress" style="width: 50%;"></div>
@@ -2077,6 +2124,271 @@
                     </div>
                 </div>
                 
+                <!-- Sensors Section -->
+                <div class="dashboard-section" id="sensorsSection">
+                    <div class="dashboard-grid">
+                        <!-- Temperature Card -->
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title">
+                                    <div class="card-icon temperature">
+                                        <i class="fas fa-thermometer-half"></i>
+                                    </div>
+                                    <div class="card-title-text">
+                                        <h3>Temperature</h3>
+                                        <p>Detailed sensor data</p>
+                                    </div>
+                                </div>
+                                <div class="card-badge" id="tempStage2">Optimal</div>
+                            </div>
+                            <div class="card-body">
+                                <div class="sensor-value-container">
+                                    <div class="sensor-value-large">
+                                        <span id="temperatureValue2">--</span>
+                                        <span class="sensor-unit">°C</span>
+                                    </div>
+                                </div>
+                                <div class="sensor-details">
+                                    <div class="detail-item">
+                                        <div class="detail-label">Raw Value</div>
+                                        <div class="detail-value" id="rawTemp2">-- °C</div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <div class="detail-label">Offset</div>
+                                        <div class="detail-value" id="tempOffset2">±0.0 °C</div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <div class="detail-label">Calibrated</div>
+                                        <div class="detail-value" id="calibratedTemp">-- °C</div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <div class="detail-label">Updated</div>
+                                        <div class="detail-value" id="tempUpdated2">--:--</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Humidity Card -->
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title">
+                                    <div class="card-icon humidity">
+                                        <i class="fas fa-tint"></i>
+                                    </div>
+                                    <div class="card-title-text">
+                                        <h3>Humidity</h3>
+                                        <p>Detailed sensor data</p>
+                                    </div>
+                                </div>
+                                <div class="card-badge" id="humStage2">Normal</div>
+                            </div>
+                            <div class="card-body">
+                                <div class="sensor-value-container">
+                                    <div class="sensor-value-large">
+                                        <span id="humidityValue2">--</span>
+                                        <span class="sensor-unit">%</span>
+                                    </div>
+                                </div>
+                                <div class="sensor-details">
+                                    <div class="detail-item">
+                                        <div class="detail-label">Raw Value</div>
+                                        <div class="detail-value" id="rawHum2">-- %</div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <div class="detail-label">Offset</div>
+                                        <div class="detail-value" id="humOffset2">±0.0 %</div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <div class="detail-label">Calibrated</div>
+                                        <div class="detail-value" id="calibratedHum">-- %</div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <div class="detail-label">Updated</div>
+                                        <div class="detail-value" id="humUpdated2">--:--</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Sensor Health Card -->
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title">
+                                    <div class="card-icon system">
+                                        <i class="fas fa-heartbeat"></i>
+                                    </div>
+                                    <div class="card-title-text">
+                                        <h3>Sensor Health</h3>
+                                        <p>Device status</p>
+                                    </div>
+                                </div>
+                                <div class="card-badge" id="sensorHealth">Healthy</div>
+                            </div>
+                            <div class="card-body">
+                                <div class="status-grid">
+                                    <div class="status-item">
+                                        <div class="status-icon" style="background: var(--primary-gradient);">
+                                            <i class="fas fa-thermometer"></i>
+                                        </div>
+                                        <div class="status-content">
+                                            <h4>Temp Sensor</h4>
+                                            <p id="tempSensorStatus">Active</p>
+                                        </div>
+                                    </div>
+                                    <div class="status-item">
+                                        <div class="status-icon" style="background: var(--success-gradient);">
+                                            <i class="fas fa-tint"></i>
+                                        </div>
+                                        <div class="status-content">
+                                            <h4>Hum Sensor</h4>
+                                            <p id="humSensorStatus">Active</p>
+                                        </div>
+                                    </div>
+                                    <div class="status-item">
+                                        <div class="status-icon" style="background: var(--info-gradient);">
+                                            <i class="fas fa-wifi"></i>
+                                        </div>
+                                        <div class="status-content">
+                                            <h4>Update Rate</h4>
+                                            <p id="updateRate">-- sec</p>
+                                        </div>
+                                    </div>
+                                    <div class="status-item">
+                                        <div class="status-icon" style="background: var(--warning-gradient);">
+                                            <i class="fas fa-history"></i>
+                                        </div>
+                                        <div class="status-content">
+                                            <h4>Last Reset</h4>
+                                            <p id="lastReset">--</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Controls Section -->
+                <div class="dashboard-section" id="controlsSection">
+                    <div class="dashboard-grid">
+                        <!-- Manual Control Card -->
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title">
+                                    <div class="card-icon control">
+                                        <i class="fas fa-gamepad"></i>
+                                    </div>
+                                    <div class="card-title-text">
+                                        <h3>Manual Control</h3>
+                                        <p>Direct device control</p>
+                                    </div>
+                                </div>
+                                <div class="card-badge" id="controlStatus">AUTO</div>
+                            </div>
+                            <div class="card-body">
+                                <div class="mode-warning" id="modeWarning2">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <div>System is in AUTO mode. Switch to MANUAL mode for direct control.</div>
+                                </div>
+                                
+                                <div class="mode-toggle">
+                                    <button class="mode-btn active" id="autoModeBtn2" onclick="setMode(true)">
+                                        <i class="fas fa-robot"></i> AUTO
+                                    </button>
+                                    <button class="mode-btn" id="manualModeBtn2" onclick="setMode(false)">
+                                        <i class="fas fa-gamepad"></i> MANUAL
+                                    </button>
+                                </div>
+                                
+                                <div class="control-grid">
+                                    <button class="control-btn" data-device="fan" data-state="on" onclick="controlDevice('fan', true)">
+                                        <i class="fas fa-fan control-btn-icon"></i>
+                                        <span>FAN ON</span>
+                                    </button>
+                                    <button class="control-btn" data-device="fan" data-state="off" onclick="controlDevice('fan', false)">
+                                        <i class="fas fa-fan control-btn-icon"></i>
+                                        <span>FAN OFF</span>
+                                    </button>
+                                    <button class="control-btn" data-device="heat" data-state="on" onclick="controlDevice('heat', true)">
+                                        <i class="fas fa-fire control-btn-icon"></i>
+                                        <span>HEAT ON</span>
+                                    </button>
+                                    <button class="control-btn" data-device="heat" data-state="off" onclick="controlDevice('heat', false)">
+                                        <i class="fas fa-fire control-btn-icon"></i>
+                                        <span>HEAT OFF</span>
+                                    </button>
+                                </div>
+                                
+                                <div class="control-quick-buttons">
+                                    <button class="action-btn success" onclick="controlBoth(true)">
+                                        <i class="fas fa-bolt"></i> BOTH ON
+                                    </button>
+                                    <button class="action-btn danger" onclick="controlBoth(false)">
+                                        <i class="fas fa-power-off"></i> BOTH OFF
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Device Status Card -->
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title">
+                                    <div class="card-icon system">
+                                        <i class="fas fa-plug"></i>
+                                    </div>
+                                    <div class="card-title-text">
+                                        <h3>Device Status</h3>
+                                        <p>Current state</p>
+                                    </div>
+                                </div>
+                                <div class="card-badge" id="deviceStatus">Online</div>
+                            </div>
+                            <div class="card-body">
+                                <div class="status-grid">
+                                    <div class="status-item">
+                                        <div class="status-icon" style="background: var(--primary-gradient);">
+                                            <i class="fas fa-fan"></i>
+                                        </div>
+                                        <div class="status-content">
+                                            <h4>Fan</h4>
+                                            <p id="fanStatus">OFF</p>
+                                        </div>
+                                    </div>
+                                    <div class="status-item">
+                                        <div class="status-icon" style="background: var(--danger-gradient);">
+                                            <i class="fas fa-fire"></i>
+                                        </div>
+                                        <div class="status-content">
+                                            <h4>Heater</h4>
+                                            <p id="heatStatus">OFF</p>
+                                        </div>
+                                    </div>
+                                    <div class="status-item">
+                                        <div class="status-icon" style="background: var(--info-gradient);">
+                                            <i class="fas fa-cogs"></i>
+                                        </div>
+                                        <div class="status-content">
+                                            <h4>Control Mode</h4>
+                                            <p id="currentControlMode">AUTO</p>
+                                        </div>
+                                    </div>
+                                    <div class="status-item">
+                                        <div class="status-icon" style="background: var(--success-gradient);">
+                                            <i class="fas fa-history"></i>
+                                        </div>
+                                        <div class="status-content">
+                                            <h4>Last Action</h4>
+                                            <p id="lastAction">--</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- Life Cycle Section -->
                 <div class="dashboard-section" id="lifecycleSection">
                     <div class="card">
@@ -2135,9 +2447,9 @@
                             </div>
                             
                             <div class="mt-lg">
-                                <div class="action-btn secondary w-full" onclick="resetToAutoStage()">
+                                <button class="action-btn secondary w-full" onclick="resetToAutoStage()">
                                     <i class="fas fa-robot"></i> Auto Detect Stage
-                                </div>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -2701,7 +3013,7 @@
                     currentAge = data.age;
                 }
                 
-                // Update UI
+                // Update UI across all sections
                 updateUI();
                 
             } catch (error) {
@@ -2718,16 +3030,26 @@
             updateAlarmDisplay();
             updateControlUI();
             updateStageDisplay();
+            updateSensorHealth();
         }
         
         function updateSensorDisplays() {
             // Temperature
             const temp = systemState.temp.toFixed(1);
+            
+            // Update all temperature displays
             document.getElementById('temperatureValue').textContent = temp;
+            document.getElementById('temperatureValue2').textContent = temp;
             document.getElementById('rawTemp').textContent = systemState.rawTemp.toFixed(1) + '°C';
+            document.getElementById('rawTemp2').textContent = systemState.rawTemp.toFixed(1) + '°C';
             document.getElementById('tempOffset').textContent = 
                 (systemState.tempOffset > 0 ? '+' : '') + systemState.tempOffset.toFixed(1) + '°C';
+            document.getElementById('tempOffset2').textContent = 
+                (systemState.tempOffset > 0 ? '+' : '') + systemState.tempOffset.toFixed(1) + '°C';
+            document.getElementById('calibratedTemp').textContent = temp + '°C';
             document.getElementById('tempUpdated').textContent = systemState.lastUpdate ? 
+                systemState.lastUpdate.toLocaleTimeString() : '--:--';
+            document.getElementById('tempUpdated2').textContent = systemState.lastUpdate ? 
                 systemState.lastUpdate.toLocaleTimeString() : '--:--';
             
             // Update progress
@@ -2735,11 +3057,19 @@
             document.getElementById('tempProgress').style.width = Math.min(Math.max(tempProgress, 0), 100) + '%';
             
             // Humidity
-            document.getElementById('humidityValue').textContent = systemState.hum.toFixed(1);
+            const hum = systemState.hum.toFixed(1);
+            document.getElementById('humidityValue').textContent = hum;
+            document.getElementById('humidityValue2').textContent = hum;
             document.getElementById('rawHum').textContent = systemState.rawHum.toFixed(1) + '%';
+            document.getElementById('rawHum2').textContent = systemState.rawHum.toFixed(1) + '%';
             document.getElementById('humOffset').textContent = 
                 (systemState.humOffset > 0 ? '+' : '') + systemState.humOffset.toFixed(1) + '%';
+            document.getElementById('humOffset2').textContent = 
+                (systemState.humOffset > 0 ? '+' : '') + systemState.humOffset.toFixed(1) + '%';
+            document.getElementById('calibratedHum').textContent = hum + '%';
             document.getElementById('humUpdated').textContent = systemState.lastUpdate ? 
+                systemState.lastUpdate.toLocaleTimeString() : '--:--';
+            document.getElementById('humUpdated2').textContent = systemState.lastUpdate ? 
                 systemState.lastUpdate.toLocaleTimeString() : '--:--';
             
             // Update progress
@@ -2750,13 +3080,15 @@
         }
         
         function updateDeviceStates() {
+            const isAuto = systemState.autoMode;
+            
             // Fan state
             document.querySelectorAll('[data-device="fan"]').forEach(btn => {
                 const state = btn.dataset.state === 'on';
                 btn.classList.toggle('active', state && systemState.fan);
                 btn.classList.toggle('inactive', !state && !systemState.fan);
-                btn.disabled = systemState.autoMode;
-                btn.classList.toggle('disabled', systemState.autoMode);
+                btn.disabled = isAuto;
+                btn.classList.toggle('disabled', isAuto);
             });
             
             // Heat state
@@ -2764,16 +3096,29 @@
                 const state = btn.dataset.state === 'on';
                 btn.classList.toggle('active', state && systemState.heat);
                 btn.classList.toggle('inactive', !state && !systemState.heat);
-                btn.disabled = systemState.autoMode;
-                btn.classList.toggle('disabled', systemState.autoMode);
+                btn.disabled = isAuto;
+                btn.classList.toggle('disabled', isAuto);
             });
             
-            // Mode
-            const isAuto = systemState.autoMode;
+            // Mode toggles
             document.getElementById('autoModeBtn').classList.toggle('active', isAuto);
             document.getElementById('manualModeBtn').classList.toggle('active', !isAuto);
+            document.getElementById('autoModeBtn2').classList.toggle('active', isAuto);
+            document.getElementById('manualModeBtn2').classList.toggle('active', !isAuto);
+            
+            // Mode warnings
             document.getElementById('modeWarning').style.display = isAuto ? 'flex' : 'none';
+            document.getElementById('modeWarning2').style.display = isAuto ? 'flex' : 'none';
+            
+            // Control mode badges
             document.getElementById('controlMode').textContent = isAuto ? 'AUTO' : 'MANUAL';
+            document.getElementById('controlStatus').textContent = isAuto ? 'AUTO' : 'MANUAL';
+            
+            // Device status
+            document.getElementById('fanStatus').textContent = systemState.fan ? 'ON' : 'OFF';
+            document.getElementById('heatStatus').textContent = systemState.heat ? 'ON' : 'OFF';
+            document.getElementById('currentControlMode').textContent = isAuto ? 'AUTO' : 'MANUAL';
+            document.getElementById('deviceStatus').textContent = isConnected ? 'Online' : 'Offline';
         }
         
         function updateSystemInfo() {
@@ -2791,6 +3136,24 @@
             // Update connection quality
             const quality = calculateConnectionQuality(systemState.wifiRSSI);
             document.getElementById('connectionQuality').textContent = quality.text;
+        }
+        
+        function updateSensorHealth() {
+            const now = Date.now();
+            const lastUpdate = systemState.lastUpdate;
+            const updateRate = lastUpdate ? Math.round((now - lastUpdate.getTime()) / 1000) : '--';
+            
+            document.getElementById('updateRate').textContent = updateRate !== '--' ? updateRate + ' sec' : '--';
+            document.getElementById('tempSensorStatus').textContent = 'Active';
+            document.getElementById('humSensorStatus').textContent = 'Active';
+            
+            if (updateRate !== '--' && updateRate > 60) {
+                document.getElementById('tempSensorStatus').textContent = 'Warning';
+                document.getElementById('humSensorStatus').textContent = 'Warning';
+            }
+            
+            document.getElementById('sensorHealth').textContent = 
+                (updateRate !== '--' && updateRate < 30) ? 'Healthy' : 'Warning';
         }
         
         function updateAlarmDisplay() {
@@ -2987,28 +3350,40 @@
             const temp = systemState.temp || 0;
             const hum = systemState.hum || 0;
             
-            // Temperature badge
+            // Temperature badges
             if (temp < stageConfig.tempMin) {
                 document.getElementById('tempStage').textContent = 'Too Cold';
                 document.getElementById('tempStage').style.color = 'var(--info)';
+                document.getElementById('tempStage2').textContent = 'Too Cold';
+                document.getElementById('tempStage2').style.color = 'var(--info)';
             } else if (temp > stageConfig.tempMax) {
                 document.getElementById('tempStage').textContent = 'Too Hot';
                 document.getElementById('tempStage').style.color = 'var(--danger)';
+                document.getElementById('tempStage2').textContent = 'Too Hot';
+                document.getElementById('tempStage2').style.color = 'var(--danger)';
             } else {
                 document.getElementById('tempStage').textContent = 'Optimal';
                 document.getElementById('tempStage').style.color = 'var(--success)';
+                document.getElementById('tempStage2').textContent = 'Optimal';
+                document.getElementById('tempStage2').style.color = 'var(--success)';
             }
             
-            // Humidity badge
+            // Humidity badges
             if (hum < stageConfig.humMin) {
                 document.getElementById('humStage').textContent = 'Too Dry';
                 document.getElementById('humStage').style.color = 'var(--warning)';
+                document.getElementById('humStage2').textContent = 'Too Dry';
+                document.getElementById('humStage2').style.color = 'var(--warning)';
             } else if (hum > stageConfig.humMax) {
                 document.getElementById('humStage').textContent = 'Too Humid';
                 document.getElementById('humStage').style.color = 'var(--danger)';
+                document.getElementById('humStage2').textContent = 'Too Humid';
+                document.getElementById('humStage2').style.color = 'var(--danger)';
             } else {
                 document.getElementById('humStage').textContent = 'Normal';
                 document.getElementById('humStage').style.color = 'var(--success)';
+                document.getElementById('humStage2').textContent = 'Normal';
+                document.getElementById('humStage2').style.color = 'var(--success)';
             }
         }
         
@@ -3051,12 +3426,16 @@
                     systemState.tempOffset.toFixed(1) + '°C';
                 document.getElementById('tempOffset').textContent = 
                     (systemState.tempOffset > 0 ? '+' : '') + systemState.tempOffset.toFixed(1) + '°C';
+                document.getElementById('tempOffset2').textContent = 
+                    (systemState.tempOffset > 0 ? '+' : '') + systemState.tempOffset.toFixed(1) + '°C';
             } else {
                 systemState.humOffset += adjustment;
                 systemState.humOffset = parseFloat(systemState.humOffset.toFixed(1));
                 document.getElementById('humCalValue').textContent = 
                     systemState.humOffset.toFixed(1) + '%';
                 document.getElementById('humOffset').textContent = 
+                    (systemState.humOffset > 0 ? '+' : '') + systemState.humOffset.toFixed(1) + '%';
+                document.getElementById('humOffset2').textContent = 
                     (systemState.humOffset > 0 ? '+' : '') + systemState.humOffset.toFixed(1) + '%';
             }
             
@@ -3291,7 +3670,10 @@
             });
             
             // Show selected section
-            document.getElementById(`${section}Section`).classList.add('active');
+            const sectionElement = document.getElementById(`${section}Section`);
+            if (sectionElement) {
+                sectionElement.classList.add('active');
+            }
             
             // Update page title
             const titles = {
@@ -3312,7 +3694,10 @@
                 link.classList.remove('active');
             });
             
-            document.querySelector(`[href="#${section}"]`).classList.add('active');
+            const navLinks = document.querySelectorAll(`[onclick="showSection('${section}')"]`);
+            if (navLinks.length > 0) {
+                navLinks[0].classList.add('active');
+            }
             
             // Close mobile menu if open
             if (window.innerWidth <= 992) {
@@ -3370,6 +3755,9 @@
                     }
                 }
             });
+            
+            // Initialize with dashboard section
+            showSection('dashboard');
         });
     </script>
 </body>
