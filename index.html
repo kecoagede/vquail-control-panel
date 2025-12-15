@@ -861,6 +861,24 @@
             border-radius: 8px;
         }
 
+        .calibration-btn {
+            position: relative;
+        }
+
+        .calibration-btn.sending::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
         /* Alarm & Log */
         .alarm-log-panel {
             grid-column: span 6;
@@ -1204,6 +1222,27 @@
         
         @keyframes spin {
             to { transform: rotate(360deg); }
+        }
+
+        /* Calibration sending indicator */
+        .calibration-sending {
+            position: relative;
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .calibration-sending::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
         }
     </style>
 </head>
@@ -1591,11 +1630,11 @@
                     <div class="calibration-item">
                         <h4>Temperature Calibration</h4>
                         <div class="calibration-control">
-                            <button class="btn btn-danger btn-small" onclick="debounceCalibration('temp', -0.5)">
+                            <button class="btn btn-danger btn-small calibration-btn" id="tempMinusBtn" onclick="startTempCalibration(-0.5)">
                                 <i class="fas fa-minus"></i> 0.5°C
                             </button>
                             <div class="calibration-value" id="tempCalValue">0.0°C</div>
-                            <button class="btn btn-success btn-small" onclick="debounceCalibration('temp', 0.5)">
+                            <button class="btn btn-success btn-small calibration-btn" id="tempPlusBtn" onclick="startTempCalibration(0.5)">
                                 <i class="fas fa-plus"></i> 0.5°C
                             </button>
                         </div>
@@ -1607,11 +1646,11 @@
                     <div class="calibration-item">
                         <h4>Humidity Calibration</h4>
                         <div class="calibration-control">
-                            <button class="btn btn-danger btn-small" onclick="debounceCalibration('hum', -0.5)">
+                            <button class="btn btn-danger btn-small calibration-btn" id="humMinusBtn" onclick="startHumCalibration(-0.5)">
                                 <i class="fas fa-minus"></i> 0.5%
                             </button>
                             <div class="calibration-value" id="humCalValue">0.0%</div>
-                            <button class="btn btn-success btn-small" onclick="debounceCalibration('hum', 0.5)">
+                            <button class="btn btn-success btn-small calibration-btn" id="humPlusBtn" onclick="startHumCalibration(0.5)">
                                 <i class="fas fa-plus"></i> 0.5%
                             </button>
                         </div>
@@ -2115,34 +2154,130 @@
             lastSync: '--:--'
         };
 
-        // ================= DEBOUNCE FUNCTIONS =================
-        let calibrationDebounceTimer = null;
-        const CALIBRATION_DEBOUNCE_TIME = 500; // 500ms debounce
+        // ================= CALIBRATION MANAGEMENT =================
+        let calibrationTimers = {
+            temp: null,
+            hum: null
+        };
+        
+        let isCalibrating = {
+            temp: false,
+            hum: false
+        };
+        
+        const CALIBRATION_DELAY = 2000; // 2 seconds delay before sending
+        const CALIBRATION_COOLDOWN = 1000; // 1 second cooldown between sends
 
-        function debounceCalibration(type, adjustment) {
-            if (calibrationDebounceTimer) {
-                clearTimeout(calibrationDebounceTimer);
+        function startTempCalibration(adjustment) {
+            handleCalibration('temp', adjustment);
+        }
+
+        function startHumCalibration(adjustment) {
+            handleCalibration('hum', adjustment);
+        }
+
+        function handleCalibration(type, adjustment) {
+            if (!isAuthenticated) {
+                showNotification('Please login first', 'error');
+                return;
             }
             
-            // Update UI immediately for better UX
+            if (!isConnected) {
+                showNotification('Not connected to MQTT', 'error');
+                return;
+            }
+            
+            // If already calibrating, just update the value but don't send new command
+            if (isCalibrating[type]) {
+                updateCalibrationUI(type, adjustment);
+                return;
+            }
+            
+            // Update UI immediately
+            updateCalibrationUI(type, adjustment);
+            
+            // Clear any existing timer
+            if (calibrationTimers[type]) {
+                clearTimeout(calibrationTimers[type]);
+            }
+            
+            // Show sending indicator
+            setCalibrationButtonState(type, 'sending');
+            
+            // Set a timer to send the calibration after delay
+            calibrationTimers[type] = setTimeout(() => {
+                sendCalibrationCommand(type);
+            }, CALIBRATION_DELAY);
+        }
+
+        function updateCalibrationUI(type, adjustment) {
+            // Update the offset value
             if (type === 'temp') {
                 systemState.tempOffset += adjustment;
+                systemState.tempOffset = parseFloat(systemState.tempOffset.toFixed(1));
                 document.getElementById('tempCalValue').textContent = 
                     systemState.tempOffset.toFixed(1) + '°C';
                 document.getElementById('tempOffset').textContent = 
                     (systemState.tempOffset > 0 ? '+' : '') + systemState.tempOffset.toFixed(1) + '°C';
             } else {
                 systemState.humOffset += adjustment;
+                systemState.humOffset = parseFloat(systemState.humOffset.toFixed(1));
                 document.getElementById('humCalValue').textContent = 
                     systemState.humOffset.toFixed(1) + '%';
                 document.getElementById('humOffset').textContent = 
                     (systemState.humOffset > 0 ? '+' : '') + systemState.humOffset.toFixed(1) + '%';
             }
+        }
+
+        function setCalibrationButtonState(type, state) {
+            const buttons = {
+                temp: {
+                    plus: document.getElementById('tempPlusBtn'),
+                    minus: document.getElementById('tempMinusBtn')
+                },
+                hum: {
+                    plus: document.getElementById('humPlusBtn'),
+                    minus: document.getElementById('humMinusBtn')
+                }
+            };
             
-            calibrationDebounceTimer = setTimeout(() => {
-                adjustCalibration(type, adjustment);
-                calibrationDebounceTimer = null;
-            }, CALIBRATION_DEBOUNCE_TIME);
+            const btnSet = buttons[type];
+            
+            if (state === 'sending') {
+                isCalibrating[type] = true;
+                btnSet.plus.classList.add('calibration-sending');
+                btnSet.minus.classList.add('calibration-sending');
+                btnSet.plus.disabled = true;
+                btnSet.minus.disabled = true;
+            } else if (state === 'ready') {
+                isCalibrating[type] = false;
+                btnSet.plus.classList.remove('calibration-sending');
+                btnSet.minus.classList.remove('calibration-sending');
+                btnSet.plus.disabled = false;
+                btnSet.minus.disabled = false;
+            }
+        }
+
+        function sendCalibrationCommand(type) {
+            if (!isAuthenticated || !isConnected) return;
+            
+            const command = {
+                [`set_${type}_offset`]: type === 'temp' ? systemState.tempOffset : systemState.humOffset,
+                timestamp: Date.now(),
+                source: 'web'
+            };
+            
+            console.log(`Sending ${type} calibration:`, command);
+            
+            publishCommand('vquail/calibration', command);
+            
+            showNotification(`${type === 'temp' ? 'Temperature' : 'Humidity'} calibration updated to ${command[`set_${type}_offset`].toFixed(1)}${type === 'temp' ? '°C' : '%'}`, 'success');
+            logMessage(`${type.toUpperCase()} calibration sent: ${command[`set_${type}_offset`].toFixed(1)}${type === 'temp' ? '°C' : '%'}`, 'info');
+            
+            // Reset button state after cooldown
+            setTimeout(() => {
+                setCalibrationButtonState(type, 'ready');
+            }, CALIBRATION_COOLDOWN);
         }
 
         // ================= DASHBOARD INITIALIZATION =================
@@ -2315,7 +2450,7 @@
                 } else if (topic.includes('control/source')) {
                     updateControlSource(data);
                 } else if (topic.includes('calibration/current')) {
-                    updateCalibration(data);
+                    updateCalibrationFromDevice(data);
                 } else if (topic.includes('status/system')) {
                     updateSystemStatus(data);
                 }
@@ -2357,6 +2492,21 @@
             updateStageDisplay();
             
             logMessage('System state updated from device', 'success');
+        }
+
+        function updateCalibrationFromDevice(data) {
+            if (data.temp_offset !== undefined) {
+                systemState.tempOffset = data.temp_offset;
+                document.getElementById('tempCalValue').textContent = systemState.tempOffset.toFixed(1) + '°C';
+                document.getElementById('tempOffset').textContent = 
+                    (systemState.tempOffset > 0 ? '+' : '') + systemState.tempOffset.toFixed(1) + '°C';
+            }
+            if (data.hum_offset !== undefined) {
+                systemState.humOffset = data.hum_offset;
+                document.getElementById('humCalValue').textContent = systemState.humOffset.toFixed(1) + '%';
+                document.getElementById('humOffset').textContent = 
+                    (systemState.humOffset > 0 ? '+' : '') + systemState.humOffset.toFixed(1) + '%';
+            }
         }
 
         // ================= LIFE STAGE FUNCTIONS =================
@@ -2610,7 +2760,6 @@
             document.getElementById('rawTemp').textContent = systemState.rawTemp.toFixed(1) + '°C';
             document.getElementById('tempOffset').textContent = 
                 (systemState.tempOffset > 0 ? '+' : '') + systemState.tempOffset.toFixed(1) + '°C';
-            document.getElementById('tempCalValue').textContent = systemState.tempOffset.toFixed(1) + '°C';
             document.getElementById('tempUpdated').textContent = systemState.lastUpdate ? 
                 systemState.lastUpdate.toLocaleTimeString() : '--:--';
             
@@ -2619,7 +2768,6 @@
             document.getElementById('rawHum').textContent = systemState.rawHum.toFixed(1) + '%';
             document.getElementById('humOffset').textContent = 
                 (systemState.humOffset > 0 ? '+' : '') + systemState.humOffset.toFixed(1) + '%';
-            document.getElementById('humCalValue').textContent = systemState.humOffset.toFixed(1) + '%';
             document.getElementById('humUpdated').textContent = systemState.lastUpdate ? 
                 systemState.lastUpdate.toLocaleTimeString() : '--:--';
             
@@ -2800,27 +2948,6 @@
             
             showNotification(`${auto ? 'AUTO' : 'MANUAL'} mode activated`, 'success');
             logMessage(`Mode: ${auto ? 'AUTO' : 'MANUAL'}`, 'info');
-        }
-
-        function adjustCalibration(type, adjustment) {
-            if (!isAuthenticated) {
-                showNotification('Please login first', 'error');
-                return;
-            }
-            
-            if (!isConnected) {
-                showNotification('Not connected to MQTT', 'error');
-                return;
-            }
-            
-            const command = {
-                [`adjust_${type}`]: adjustment,
-                timestamp: Date.now(),
-                source: 'web'
-            };
-            
-            publishCommand('vquail/calibration', command);
-            showNotification(`${type === 'temp' ? 'Temperature' : 'Humidity'} calibration adjusted by ${adjustment}${type === 'temp' ? '°C' : '%'}`, 'success');
         }
 
         function resetCalibration() {
@@ -3106,12 +3233,6 @@
             if (data.source) systemState.lastSource = data.source;
             if (data.channel) systemState.controlChannel = data.channel;
             updateControlUI();
-        }
-
-        function updateCalibration(data) {
-            if (data.temp_offset !== undefined) systemState.tempOffset = data.temp_offset;
-            if (data.hum_offset !== undefined) systemState.humOffset = data.hum_offset;
-            updateSensorDisplays();
         }
 
         function updateSystemStatus(data) {
