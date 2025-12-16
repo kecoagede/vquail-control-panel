@@ -411,6 +411,7 @@
             overflow-y: auto;
             display: flex;
             flex-direction: column;
+            transform: translateX(0);
         }
 
         .sidebar-header {
@@ -1307,6 +1308,9 @@
             align-items: center;
             justify-content: center;
             z-index: var(--z-fixed);
+            position: fixed;
+            top: var(--spacing-lg);
+            left: var(--spacing-lg);
         }
 
         .mobile-overlay {
@@ -1318,7 +1322,7 @@
             height: 100%;
             background: rgba(0, 0, 0, 0.5);
             backdrop-filter: blur(5px);
-            z-index: var(--z-modal);
+            z-index: calc(var(--z-modal) - 1);
         }
 
         /* =========== ANIMATIONS =========== */
@@ -1416,6 +1420,7 @@
             
             .top-bar {
                 padding: var(--spacing-md);
+                padding-left: 60px;
             }
             
             .content-area {
@@ -1493,6 +1498,11 @@
                 left: var(--spacing-md);
                 right: var(--spacing-md);
                 max-width: none;
+            }
+            
+            .mobile-menu-toggle {
+                top: var(--spacing-md);
+                left: var(--spacing-md);
             }
         }
 
@@ -3228,8 +3238,17 @@
             
             publishCommand('vquail/web/control', command);
             
-            // Update local state
+            // Update local state immediately for responsive UI
             systemState[device] = state;
+            
+            // Also send MQTT command to control devices
+            const controlCommand = {
+                device: device,
+                state: state,
+                timestamp: Date.now()
+            };
+            publishCommand(`vquail/control/${device}`, controlCommand);
+            
             updateDeviceStates();
             
             showNotification(`${device.toUpperCase()} turned ${state ? 'ON' : 'OFF'}`, 'success');
@@ -3254,8 +3273,16 @@
             
             publishCommand('vquail/web/control', command);
             
+            // Update local state immediately
             systemState.autoMode = auto;
             updateDeviceStates();
+            
+            // Send MQTT command for mode change
+            const modeCommand = {
+                mode: auto ? 'auto' : 'manual',
+                timestamp: Date.now()
+            };
+            publishCommand('vquail/control/mode', modeCommand);
             
             showNotification(`${auto ? 'AUTO' : 'MANUAL'} mode activated`, 'success');
         }
@@ -3700,10 +3727,35 @@
             }
             
             // Close mobile menu if open
-            if (window.innerWidth <= 992) {
-                document.getElementById('sidebar').classList.remove('active');
-                document.getElementById('mobileOverlay').classList.remove('active');
+            closeMobileMenu();
+        }
+        
+        function toggleMobileMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+            
+            // Toggle hamburger icon
+            const toggleBtn = document.getElementById('mobileMenuToggle');
+            if (sidebar.classList.contains('active')) {
+                toggleBtn.innerHTML = '<i class="fas fa-times"></i>';
+            } else {
+                toggleBtn.innerHTML = '<i class="fas fa-bars"></i>';
             }
+        }
+        
+        function closeMobileMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            
+            sidebar.classList.remove('active');
+            overlay.classList.remove('active');
+            
+            // Reset hamburger icon
+            const toggleBtn = document.getElementById('mobileMenuToggle');
+            toggleBtn.innerHTML = '<i class="fas fa-bars"></i>';
         }
         
         // ================= EVENT LISTENERS =================
@@ -3719,15 +3771,9 @@
             });
             
             // Mobile menu toggle
-            document.getElementById('mobileMenuToggle').addEventListener('click', () => {
-                document.getElementById('sidebar').classList.add('active');
-                document.getElementById('mobileOverlay').classList.add('active');
-            });
+            document.getElementById('mobileMenuToggle').addEventListener('click', toggleMobileMenu);
             
-            document.getElementById('mobileOverlay').addEventListener('click', () => {
-                document.getElementById('sidebar').classList.remove('active');
-                document.getElementById('mobileOverlay').classList.remove('active');
-            });
+            document.getElementById('mobileOverlay').addEventListener('click', closeMobileMenu);
             
             // Auto-reconnect
             setInterval(() => {
