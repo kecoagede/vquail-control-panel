@@ -797,10 +797,10 @@
             // This would normally come from a secure server API
             // For demo, we're using encrypted local storage
             const salt = "vquail"; // In production, this should be unique per user
-            const storedHash = hashPassword("Vquail12345", salt);
+            const storedHash = hashPassword("vquail123", salt);
             
             return {
-                username: "vquail_admin",
+                username: "vquail",
                 passwordHash: storedHash,
                 salt: salt,
                 role: "admin",
@@ -1146,7 +1146,7 @@
         }
 
         // ============================================
-        // DASHBOARD FUNCTIONS (from original code)
+        // DASHBOARD FUNCTIONS
         // ============================================
         // MQTT Configuration
         const CONFIG = {
