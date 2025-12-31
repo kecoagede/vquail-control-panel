@@ -1012,6 +1012,73 @@
             box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
         }
         
+        .status-indicator.info {
+            background: linear-gradient(135deg, var(--info), #60a5fa);
+            color: white;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+        }
+        
+        /* Validation Indicator */
+        .validation-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+            padding: 3px 10px;
+            border-radius: 15px;
+            margin-left: 10px;
+        }
+        
+        .validation-indicator.validating {
+            background: var(--warning);
+            color: white;
+            animation: pulse 1s infinite;
+        }
+        
+        .validation-indicator.valid {
+            background: var(--success);
+            color: white;
+        }
+        
+        .validation-indicator.invalid {
+            background: var(--danger);
+            color: white;
+        }
+        
+        /* Sensor Validation Progress */
+        .validation-progress {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 15px;
+            padding: 10px;
+            background: var(--bg-glass);
+            border-radius: var(--radius-md);
+        }
+        
+        .validation-dots {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .validation-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            transition: var(--transition);
+        }
+        
+        .validation-dot.active {
+            background: var(--success);
+            transform: scale(1.2);
+        }
+        
+        .validation-dot.validating {
+            background: var(--warning);
+            animation: pulse 1s infinite;
+        }
+        
         /* Notification */
         .notification {
             position: fixed;
@@ -1180,6 +1247,11 @@
             0% { transform: translateX(0); }
             100% { transform: translateX(-50%); }
         }
+        
+        /* Text Center Utility */
+        .text-center {
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -1196,6 +1268,9 @@
                     Sensor Interval: 
                     <span class="interval-badge">30 MINUTES</span>
                 </p>
+                <p style="margin-top: 10px; font-size: 13px; color: var(--warning);">
+                    <i class="fas fa-shield-alt"></i> Sensor validation enabled
+                </p>
             </div>
             <div class="login-form">
                 <div class="form-group">
@@ -1211,6 +1286,7 @@
                 </button>
                 <div class="login-footer">
                     <p><i class="fas fa-cloud"></i> Data via MQTT | Web Control Only</p>
+                    <p style="margin-top: 10px; font-size: 12px;"><i class="fas fa-info-circle"></i> Sensors require 3 stable readings before display</p>
                 </div>
             </div>
         </div>
@@ -1226,6 +1302,9 @@
                     <i class="fas fa-clock"></i>
                     <span>Sensor update: 30 minutes</span>
                     <span id="nextUpdateBadge" class="interval-badge"></span>
+                    <span id="sensorValidationStatus" class="validation-indicator validating" style="display: none;">
+                        <i class="fas fa-microchip"></i> Validating...
+                    </span>
                 </p>
             </div>
             <div class="header-right">
@@ -1275,6 +1354,18 @@
                                 <span class="sensor-unit">°C</span>
                             </div>
                             <div class="value-trend" id="tempTrend">--</div>
+                        </div>
+                        
+                        <!-- Validation Progress -->
+                        <div class="validation-progress" id="tempValidationProgress" style="display: none;">
+                            <div class="validation-dots">
+                                <div class="validation-dot" id="tempDot1"></div>
+                                <div class="validation-dot" id="tempDot2"></div>
+                                <div class="validation-dot" id="tempDot3"></div>
+                            </div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">
+                                <span id="tempValidationText">Validating sensor readings...</span>
+                            </div>
                         </div>
                         
                         <div class="sensor-details">
@@ -1329,6 +1420,18 @@
                                 <span class="sensor-unit">%</span>
                             </div>
                             <div class="value-trend" id="humTrend">--</div>
+                        </div>
+                        
+                        <!-- Validation Progress -->
+                        <div class="validation-progress" id="humValidationProgress" style="display: none;">
+                            <div class="validation-dots">
+                                <div class="validation-dot" id="humDot1"></div>
+                                <div class="validation-dot" id="humDot2"></div>
+                                <div class="validation-dot" id="humDot3"></div>
+                            </div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">
+                                <span id="humValidationText">Validating sensor readings...</span>
+                            </div>
                         </div>
                         
                         <div class="sensor-details">
@@ -1400,6 +1503,14 @@
                             <div class="detail-item">
                                 <div class="detail-label">Heap Free</div>
                                 <div class="detail-value" id="freeHeap">-- KB</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Sensor Status</div>
+                                <div class="detail-value" id="sensorValidation">--</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Valid Readings</div>
+                                <div class="detail-value" id="consecutiveReadings">0</div>
                             </div>
                         </div>
                         
@@ -1584,6 +1695,9 @@
                         <button class="action-btn danger" onclick="sendReboot()">
                             <i class="fas fa-redo"></i> Reboot Device
                         </button>
+                        <button class="action-btn info" onclick="forceSensorRead()">
+                            <i class="fas fa-microchip"></i> Force Sensor Read
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1623,8 +1737,8 @@
         let previousHum = null;
         
         let systemState = {
-            temp: 0,
-            hum: 0,
+            temp: -99.9, // Special value for invalid reading
+            hum: -99.9,  // Special value for invalid reading
             rawTemp: 0,
             rawHum: 0,
             tempOffset: 0,
@@ -1642,7 +1756,25 @@
             free_heap: 0,
             lastUpdate: null,
             sensor_interval: 1800, // 30 minutes in seconds
-            next_sensor_update: '00:00'
+            next_sensor_update: '00:00',
+            sensor_online: false,
+            sensor_validated: false,
+            sensor_fail_count: 0,
+            consecutive_valid_readings: 0
+        };
+
+        // Sensor validation state
+        let sensorValidationState = {
+            temp: {
+                readings: [],
+                validated: false,
+                consecutiveValid: 0
+            },
+            hum: {
+                readings: [],
+                validated: false,
+                consecutiveValid: 0
+            }
         };
 
         // Life Stages with temperature ranges
@@ -1862,24 +1994,74 @@
                 
                 // Update system state based on topic
                 if (topic === 'vquail/status/device') {
-                    // Update all system state from device status
-                    Object.assign(systemState, data);
+                    // Check if sensor readings are valid (not -99.9)
+                    const hasValidSensorData = data.temp > -99 && data.hum > -99;
                     
-                    // Update stage from index
-                    if (data.stage_index !== undefined) {
-                        const stages = ['BROODING_WEEK1', 'BROODING_WEEK2', 'GROWER_WEEK3_6', 'ADULT_LAYER'];
-                        if (data.stage_index >= 0 && data.stage_index < stages.length) {
-                            currentStage = stages[data.stage_index];
+                    if (hasValidSensorData) {
+                        // Update all system state from device status
+                        Object.assign(systemState, data);
+                        
+                        // Update validation state
+                        sensorValidationState.temp.validated = data.sensor_validated || false;
+                        sensorValidationState.hum.validated = data.sensor_validated || false;
+                        
+                        if (data.consecutive_valid_readings) {
+                            updateValidationProgress(data.consecutive_valid_readings);
+                        }
+                        
+                        // Update stage from index
+                        if (data.stage_index !== undefined) {
+                            const stages = ['BROODING_WEEK1', 'BROODING_WEEK2', 'GROWER_WEEK3_6', 'ADULT_LAYER'];
+                            if (data.stage_index >= 0 && data.stage_index < stages.length) {
+                                currentStage = stages[data.stage_index];
+                            }
+                        }
+                        
+                        // Update age
+                        if (data.age !== undefined) {
+                            currentAge = data.age;
+                        }
+                        
+                        // Calculate trends
+                        if (previousTemp !== null && systemState.temp !== previousTemp) {
+                            const trend = systemState.temp > previousTemp ? 'up' : systemState.temp < previousTemp ? 'down' : 'stable';
+                            document.getElementById('tempTrend').textContent = trend === 'up' ? '↗' : trend === 'down' ? '↘' : '→';
+                            document.getElementById('tempTrend').className = `value-trend ${trend}`;
+                        }
+                        
+                        if (previousHum !== null && systemState.hum !== previousHum) {
+                            const trend = systemState.hum > previousHum ? 'up' : systemState.hum < previousHum ? 'down' : 'stable';
+                            document.getElementById('humTrend').textContent = trend === 'up' ? '↗' : trend === 'down' ? '↘' : '→';
+                            document.getElementById('humTrend').className = `value-trend ${trend}`;
+                        }
+                        
+                        // Save previous values
+                        previousTemp = systemState.temp;
+                        previousHum = systemState.hum;
+                        
+                    } else {
+                        // Handle invalid sensor data
+                        console.log('[WARN] Invalid sensor data received, waiting for validated readings');
+                        
+                        // Still update other system info
+                        systemState.stage = data.stage || systemState.stage;
+                        systemState.age = data.age || systemState.age;
+                        systemState.fan = data.fan || systemState.fan;
+                        systemState.heat = data.heat || systemState.heat;
+                        systemState.auto = data.auto || systemState.auto;
+                        systemState.wifi_rssi = data.wifi_rssi || systemState.wifi_rssi;
+                        systemState.sensor_online = data.sensor_online || false;
+                        systemState.sensor_validated = data.sensor_validated || false;
+                        systemState.consecutive_valid_readings = data.consecutive_valid_readings || 0;
+                        
+                        // Update validation progress
+                        if (data.consecutive_valid_readings) {
+                            updateValidationProgress(data.consecutive_valid_readings);
                         }
                     }
                     
-                    // Update age
-                    if (data.age !== undefined) {
-                        currentAge = data.age;
-                    }
-                    
                 } else if (topic === 'vquail/sensors') {
-                    // Update sensor data
+                    // Update sensor data (these are only published when validated)
                     const oldTemp = systemState.temp;
                     const oldHum = systemState.hum;
                     
@@ -1889,6 +2071,14 @@
                     systemState.rawHum = data.raw_hum || systemState.rawHum;
                     systemState.tempOffset = data.temp_offset || systemState.tempOffset;
                     systemState.humOffset = data.hum_offset || systemState.humOffset;
+                    
+                    // Update validation state
+                    sensorValidationState.temp.validated = data.sensor_validated || false;
+                    sensorValidationState.hum.validated = data.sensor_validated || false;
+                    
+                    if (data.consecutive_valid_readings) {
+                        updateValidationProgress(data.consecutive_valid_readings);
+                    }
                     
                     // Calculate trends
                     if (oldTemp !== null && systemState.temp !== oldTemp) {
@@ -1915,6 +2105,8 @@
                 } else if (topic === 'vquail/status/system') {
                     // Update system status
                     systemState.free_heap = data.free_heap || systemState.free_heap;
+                    systemState.sensor_online = data.sensor || systemState.sensor_online;
+                    systemState.sensor_validated = data.sensor_validated || systemState.sensor_validated;
                 }
                 
                 // Update timestamp
@@ -1927,6 +2119,69 @@
                 
             } catch (error) {
                 console.error('Error processing message:', error);
+            }
+        }
+
+        // Update validation progress display
+        function updateValidationProgress(consecutiveReadings) {
+            const validationCount = Math.min(consecutiveReadings, 3);
+            
+            // Update progress dots
+            for (let i = 1; i <= 3; i++) {
+                const tempDot = document.getElementById(`tempDot${i}`);
+                const humDot = document.getElementById(`humDot${i}`);
+                
+                if (tempDot && humDot) {
+                    if (i <= validationCount) {
+                        tempDot.className = i === 3 ? 'validation-dot active' : 'validation-dot validating';
+                        humDot.className = i === 3 ? 'validation-dot active' : 'validation-dot validating';
+                    } else {
+                        tempDot.className = 'validation-dot';
+                        humDot.className = 'validation-dot';
+                    }
+                }
+            }
+            
+            // Update validation text
+            const tempValidationText = document.getElementById('tempValidationText');
+            const humValidationText = document.getElementById('humValidationText');
+            
+            if (validationCount >= 3) {
+                if (tempValidationText) tempValidationText.textContent = 'Validated ✓';
+                if (humValidationText) humValidationText.textContent = 'Validated ✓';
+                
+                // Hide validation progress when fully validated
+                setTimeout(() => {
+                    const tempProgress = document.getElementById('tempValidationProgress');
+                    const humProgress = document.getElementById('humValidationProgress');
+                    if (tempProgress) tempProgress.style.display = 'none';
+                    if (humProgress) humProgress.style.display = 'none';
+                }, 2000);
+            } else {
+                if (tempValidationText) tempValidationText.textContent = `Validating... (${validationCount}/3)`;
+                if (humValidationText) humValidationText.textContent = `Validating... (${validationCount}/3)`;
+                
+                // Show validation progress
+                const tempProgress = document.getElementById('tempValidationProgress');
+                const humProgress = document.getElementById('humValidationProgress');
+                if (tempProgress) tempProgress.style.display = 'flex';
+                if (humProgress) humProgress.style.display = 'flex';
+            }
+            
+            // Update header validation status
+            const validationStatus = document.getElementById('sensorValidationStatus');
+            if (validationStatus) {
+                if (validationCount >= 3) {
+                    validationStatus.textContent = 'Validated ✓';
+                    validationStatus.className = 'validation-indicator valid';
+                    validationStatus.style.display = 'inline-flex';
+                } else if (validationCount > 0) {
+                    validationStatus.textContent = `Validating (${validationCount}/3)`;
+                    validationStatus.className = 'validation-indicator validating';
+                    validationStatus.style.display = 'inline-flex';
+                } else {
+                    validationStatus.style.display = 'none';
+                }
             }
         }
 
@@ -2156,19 +2411,56 @@
             }
         }
 
+        function forceSensorRead() {
+            if (!isConnected) {
+                showNotification('Not connected', 'error');
+                return;
+            }
+
+            // Show validation progress
+            updateValidationProgress(0);
+            
+            const command = {
+                request: "sensor_read",
+                timestamp: Date.now(),
+                source: 'web'
+            };
+
+            publishMessage('vquail/status/request', command);
+            showNotification('Forcing sensor read and validation...', 'info');
+        }
+
         // UI Updates
         function updateUI() {
+            // Update sensor validation status first
+            updateSensorValidationStatus();
+            
             // Temperature
-            document.getElementById('temperatureValue').textContent = systemState.temp.toFixed(1);
-            document.getElementById('rawTemp').textContent = systemState.rawTemp.toFixed(1) + '°C';
-            document.getElementById('tempOffset').textContent = (systemState.tempOffset > 0 ? '+' : '') + systemState.tempOffset.toFixed(1) + '°C';
+            if (systemState.temp > -99 && systemState.hum > -99) {
+                document.getElementById('temperatureValue').textContent = systemState.temp.toFixed(1);
+                document.getElementById('humidityValue').textContent = systemState.hum.toFixed(1);
+                
+                document.getElementById('rawTemp').textContent = systemState.rawTemp.toFixed(1) + '°C';
+                document.getElementById('tempOffset').textContent = (systemState.tempOffset > 0 ? '+' : '') + systemState.tempOffset.toFixed(1) + '°C';
+                
+                document.getElementById('rawHum').textContent = systemState.rawHum.toFixed(1) + '%';
+                document.getElementById('humOffset').textContent = (systemState.humOffset > 0 ? '+' : '') + systemState.humOffset.toFixed(1) + '%';
+                
+                document.getElementById('tempStatus').textContent = 'Validated';
+                document.getElementById('humStatus').textContent = 'Validated';
+            } else {
+                document.getElementById('temperatureValue').textContent = '--';
+                document.getElementById('humidityValue').textContent = '--';
+                document.getElementById('rawTemp').textContent = '--';
+                document.getElementById('tempOffset').textContent = '--';
+                document.getElementById('rawHum').textContent = '--';
+                document.getElementById('humOffset').textContent = '--';
+                document.getElementById('tempStatus').textContent = systemState.sensor_online ? 'Validating...' : 'Offline';
+                document.getElementById('humStatus').textContent = systemState.sensor_online ? 'Validating...' : 'Offline';
+            }
+            
             document.getElementById('tempUpdated').textContent = systemState.lastUpdate ? 
                 systemState.lastUpdate.toLocaleTimeString() : '--:--';
-            
-            // Humidity
-            document.getElementById('humidityValue').textContent = systemState.hum.toFixed(1);
-            document.getElementById('rawHum').textContent = systemState.rawHum.toFixed(1) + '%';
-            document.getElementById('humOffset').textContent = (systemState.humOffset > 0 ? '+' : '') + systemState.humOffset.toFixed(1) + '%';
             document.getElementById('humUpdated').textContent = systemState.lastUpdate ? 
                 systemState.lastUpdate.toLocaleTimeString() : '--:--';
             
@@ -2180,6 +2472,23 @@
             document.getElementById('systemUptime').textContent = formatUptime(systemState.uptime);
             document.getElementById('freeHeap').textContent = systemState.free_heap ? 
                 Math.round(systemState.free_heap / 1024) + ' KB' : '--';
+            document.getElementById('consecutiveReadings').textContent = systemState.consecutive_valid_readings || 0;
+            
+            // Sensor validation status
+            let sensorStatus = '--';
+            if (systemState.sensor_online) {
+                if (systemState.sensor_validated) {
+                    sensorStatus = 'Validated';
+                    document.getElementById('sensorValidation').style.color = 'var(--success)';
+                } else {
+                    sensorStatus = 'Validating...';
+                    document.getElementById('sensorValidation').style.color = 'var(--warning)';
+                }
+            } else {
+                sensorStatus = 'Offline';
+                document.getElementById('sensorValidation').style.color = 'var(--danger)';
+            }
+            document.getElementById('sensorValidation').textContent = sensorStatus;
             
             // Update next sensor update time
             updateNextSensorTime();
@@ -2187,14 +2496,29 @@
             // Update optimal ranges based on current stage
             updateOptimalRanges();
             
-            // Update progress bars
-            updateProgressBars();
+            // Update progress bars (only if we have valid data)
+            if (systemState.temp > -99 && systemState.hum > -99) {
+                updateProgressBars();
+            }
             
             // Control UI
             updateControlUI();
             updateStageDisplay();
             updateCalibrationDisplay();
             updateStatusBadges();
+        }
+
+        function updateSensorValidationStatus() {
+            const tempValue = document.getElementById('temperatureValue');
+            const humValue = document.getElementById('humidityValue');
+            
+            // Check if we have valid readings
+            if (systemState.temp <= -99 || systemState.hum <= -99) {
+                tempValue.textContent = '--';
+                humValue.textContent = '--';
+                document.getElementById('tempStatus').textContent = systemState.sensor_online ? 'Validating...' : 'Offline';
+                document.getElementById('humStatus').textContent = systemState.sensor_online ? 'Validating...' : 'Offline';
+            }
         }
 
         function updateControlUI() {
@@ -2266,6 +2590,15 @@
             const stageConfig = LIFE_STAGES[currentStage];
             if (!stageConfig) return;
             
+            // Only update badges if we have valid sensor data
+            if (systemState.temp <= -99 || systemState.hum <= -99) {
+                document.getElementById('tempBadge').textContent = 'Validating';
+                document.getElementById('tempBadge').className = 'status-indicator warning';
+                document.getElementById('humBadge').textContent = 'Validating';
+                document.getElementById('humBadge').className = 'status-indicator warning';
+                return;
+            }
+            
             // Temperature badge
             const tempBadge = document.getElementById('tempBadge');
             if (systemState.temp < stageConfig.tempMin - 2) {
@@ -2312,6 +2645,13 @@
         function updateProgressBars() {
             const stageConfig = LIFE_STAGES[currentStage];
             if (!stageConfig) return;
+            
+            // Only update progress bars if we have valid data
+            if (systemState.temp <= -99 || systemState.hum <= -99) {
+                document.getElementById('tempProgress').style.width = '0%';
+                document.getElementById('humProgress').style.width = '0%';
+                return;
+            }
             
             // Temperature progress
             const tempRange = stageConfig.tempMax - stageConfig.tempMin;
