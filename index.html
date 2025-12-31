@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VQuail Dashboard - Secure Login</title>
+    <title>VQuail Dashboard</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
@@ -796,8 +796,8 @@
         function getSecureCredentials() {
             // This would normally come from a secure server API
             // For demo, we're using encrypted local storage
-            const salt = "VQuailSecureSalt2024!@#"; // In production, this should be unique per user
-            const storedHash = hashPassword("VquailSecurePass123!", salt);
+            const salt = "vquail"; // In production, this should be unique per user
+            const storedHash = hashPassword("Vquail12345", salt);
             
             return {
                 username: "vquail_admin",
