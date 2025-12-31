@@ -295,7 +295,6 @@
         .card-icon.hum { background: linear-gradient(135deg, var(--success), #38b9e0); }
         .card-icon.control { background: linear-gradient(135deg, var(--warning), #f9b458); }
         .card-icon.system { background: linear-gradient(135deg, var(--info), #9d4edd); }
-        .card-icon.power { background: linear-gradient(135deg, #8b5cf6, #a78bfa); }
         
         .card-body {
             padding: 20px;
@@ -701,24 +700,6 @@
                 grid-template-columns: 1fr;
             }
         }
-        
-        /* Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        
-        ::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.05);
-        }
-        
-        ::-webkit-scrollbar-thumb {
-            background: var(--primary);
-            border-radius: 4px;
-        }
-        
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--primary-light);
-        }
     </style>
 </head>
 <body>
@@ -727,7 +708,7 @@
         <div class="login-card">
             <div class="login-header">
                 <h1>VQuail Power Control</h1>
-                <p>Sensor Interval: 30 minutes | Power Saving: Enabled</p>
+                <p>Sensor Interval: 30 seconds | Web Control Only</p>
             </div>
             <div class="login-form">
                 <div class="form-group">
@@ -754,7 +735,7 @@
         <div class="header">
             <div class="header-left">
                 <h1>VQuail Power Control</h1>
-                <p id="connectionInfo">Disconnected | Sensor update: 30min</p>
+                <p id="connectionInfo">Disconnected | Sensor update: 30s</p>
             </div>
             <div class="header-right">
                 <div class="connection-status">
@@ -810,7 +791,7 @@
                             </div>
                             <div class="detail-item">
                                 <div class="detail-label">Next Update</div>
-                                <div class="detail-value" id="tempNextUpdate">30 min</div>
+                                <div class="detail-value" id="tempNextUpdate">30s</div>
                             </div>
                         </div>
                     </div>
@@ -850,7 +831,7 @@
                             </div>
                             <div class="detail-item">
                                 <div class="detail-label">Next Update</div>
-                                <div class="detail-value" id="humNextUpdate">30 min</div>
+                                <div class="detail-value" id="humNextUpdate">30s</div>
                             </div>
                         </div>
                     </div>
@@ -890,10 +871,6 @@
                             <div class="detail-item">
                                 <div class="detail-label">Control Source</div>
                                 <div class="detail-value" id="controlSource">--</div>
-                            </div>
-                            <div class="detail-item">
-                                <div class="detail-label">Power Mode</div>
-                                <div class="detail-value" id="powerMode">Normal</div>
                             </div>
                             <div class="detail-item">
                                 <div class="detail-label">Last Activity</div>
@@ -1076,28 +1053,6 @@
                             <i class="fas fa-redo"></i> Reboot Device
                         </button>
                     </div>
-                    
-                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border-color);">
-                        <h4 style="margin-bottom: 15px;">Power Management</h4>
-                        <div class="sensor-details">
-                            <div class="detail-item">
-                                <div class="detail-label">Power Mode</div>
-                                <div class="detail-value" id="powerModeStatus">Normal</div>
-                            </div>
-                            <div class="detail-item">
-                                <div class="detail-label">Last Activity</div>
-                                <div class="detail-value" id="lastActivityTime">--</div>
-                            </div>
-                            <div class="detail-item">
-                                <div class="detail-label">Sleep Cycles</div>
-                                <div class="detail-value" id="sleepCycles">0</div>
-                            </div>
-                            <div class="detail-item">
-                                <div class="detail-label">WiFi Status</div>
-                                <div class="detail-value" id="wifiPowerStatus">Enabled</div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -1123,7 +1078,7 @@
                 username: 'vquail',
                 password: 'Vquail12345'
             },
-            sensorInterval: 1800000 // 30 minutes
+            sensorInterval: 30000 // 30 seconds
         };
 
         // State
@@ -1141,21 +1096,17 @@
             humOffset: 0,
             fan: false,
             heat: false,
-            autoMode: true,
+            auto: true,  // Changed from autoMode to auto to match ESP32 JSON
             stage: '--',
             age: 0,
-            wifiRSSI: 0,
-            controlChannel: '--',
-            lastSource: '--',
+            wifi_rssi: 0,
+            control_channel: '--',
+            last_control_source: '--',
             alarm: false,
-            alarmMessage: '',
+            alarm_message: '',
             uptime: 0,
-            freeHeap: 0,
-            lastUpdate: null,
-            powerMode: 0,
-            lastActivity: 0,
-            sleepCycles: 0,
-            wifiEnabled: true
+            free_heap: 0,
+            lastUpdate: null
         };
 
         // Life Stages
@@ -1251,8 +1202,8 @@
                     
                     // Subscribe to topics
                     mqttClient.subscribe('vquail/status/device', { qos: 1 });
-                    mqttClient.subscribe('vquail/status/system', { qos: 1 });
                     mqttClient.subscribe('vquail/sensors', { qos: 1 });
+                    mqttClient.subscribe('vquail/status/system', { qos: 1 });
                     mqttClient.subscribe('vquail/calibration/current', { qos: 1 });
                     
                     // Request initial status
@@ -1295,6 +1246,7 @@
                 
                 // Update system state based on topic
                 if (topic === 'vquail/status/device') {
+                    // Update all system state from device status
                     Object.assign(systemState, data);
                     
                     // Update stage from index
@@ -1316,6 +1268,8 @@
                     systemState.hum = data.hum || systemState.hum;
                     systemState.rawTemp = data.raw_temp || systemState.rawTemp;
                     systemState.rawHum = data.raw_hum || systemState.rawHum;
+                    systemState.tempOffset = data.temp_offset || systemState.tempOffset;
+                    systemState.humOffset = data.hum_offset || systemState.humOffset;
                     
                 } else if (topic === 'vquail/calibration/current') {
                     // Update calibration data
@@ -1324,7 +1278,7 @@
                     
                 } else if (topic === 'vquail/status/system') {
                     // Update system status
-                    systemState.freeHeap = data.free_heap || systemState.freeHeap;
+                    systemState.free_heap = data.free_heap || systemState.free_heap;
                 }
                 
                 // Update timestamp
@@ -1347,7 +1301,7 @@
                 return;
             }
 
-            if (systemState.autoMode) {
+            if (systemState.auto) {
                 showNotification('Switch to MANUAL mode first', 'warning');
                 return;
             }
@@ -1363,9 +1317,11 @@
             
             // Update button state immediately
             if (device === 'fan') {
+                systemState.fan = state;
                 document.getElementById('fanOnBtn').classList.toggle('active', state);
                 document.getElementById('fanOffBtn').classList.toggle('active', !state);
             } else if (device === 'heat') {
+                systemState.heat = state;
                 document.getElementById('heatOnBtn').classList.toggle('active', state);
                 document.getElementById('heatOffBtn').classList.toggle('active', !state);
             }
@@ -1391,7 +1347,8 @@
             publishMessage('vquail/web/control', command);
             showNotification(`${auto ? 'AUTO' : 'MANUAL'} mode activated`, 'success');
             
-            // Update button states
+            // Update system state and UI immediately
+            systemState.auto = auto;
             updateControlUI();
         }
 
@@ -1558,19 +1515,11 @@
             // System Status
             document.getElementById('lifeStage').textContent = systemState.stage;
             document.getElementById('quailAge').textContent = systemState.age + ' days';
-            document.getElementById('wifiRSSI').textContent = systemState.wifiRSSI + ' dBm';
-            document.getElementById('controlSource').textContent = systemState.controlChannel;
+            document.getElementById('wifiRSSI').textContent = systemState.wifi_rssi + ' dBm';
+            document.getElementById('controlSource').textContent = systemState.control_channel;
             document.getElementById('systemUptime').textContent = formatUptime(systemState.uptime);
-            document.getElementById('freeHeap').textContent = systemState.freeHeap ? 
-                Math.round(systemState.freeHeap / 1024) + ' KB' : '--';
-            
-            // Power Management
-            document.getElementById('powerMode').textContent = systemState.powerMode === 0 ? 'Normal' : 'Low Power';
-            document.getElementById('powerModeStatus').textContent = systemState.powerMode === 0 ? 'Normal' : 'Low Power';
-            document.getElementById('lastActivity').textContent = formatTime(systemState.lastActivity);
-            document.getElementById('lastActivityTime').textContent = formatTime(systemState.lastActivity);
-            document.getElementById('sleepCycles').textContent = systemState.sleepCycles || 0;
-            document.getElementById('wifiPowerStatus').textContent = systemState.wifiEnabled ? 'Enabled' : 'Disabled';
+            document.getElementById('freeHeap').textContent = systemState.free_heap ? 
+                Math.round(systemState.free_heap / 1024) + ' KB' : '--';
             
             // Update next sensor update time
             updateNextSensorTime();
@@ -1587,7 +1536,7 @@
         }
 
         function updateControlUI() {
-            const isAuto = systemState.autoMode;
+            const isAuto = systemState.auto;
             
             // Mode buttons
             document.getElementById('autoModeBtn').classList.toggle('active', isAuto);
@@ -1671,9 +1620,9 @@
         function updateNextSensorTime() {
             const now = Date.now();
             if (nextSensorUpdate > now) {
-                const minutes = Math.round((nextSensorUpdate - now) / 60000);
-                document.getElementById('tempNextUpdate').textContent = minutes + ' min';
-                document.getElementById('humNextUpdate').textContent = minutes + ' min';
+                const seconds = Math.round((nextSensorUpdate - now) / 1000);
+                document.getElementById('tempNextUpdate').textContent = seconds + 's';
+                document.getElementById('humNextUpdate').textContent = seconds + 's';
             } else {
                 document.getElementById('tempNextUpdate').textContent = 'Soon';
                 document.getElementById('humNextUpdate').textContent = 'Soon';
@@ -1690,7 +1639,7 @@
             switch(status) {
                 case 'connected':
                     text.textContent = 'Connected';
-                    info.textContent = 'Connected | Sensor update: 30min';
+                    info.textContent = 'Connected | Sensor update: 30s';
                     break;
                 case 'connecting':
                     text.textContent = 'Connecting...';
@@ -1705,7 +1654,10 @@
 
         // Utility Functions
         function publishMessage(topic, message) {
-            if (!mqttClient || !isConnected) return;
+            if (!mqttClient || !isConnected) {
+                showNotification('Not connected to MQTT', 'error');
+                return;
+            }
             
             mqttClient.publish(topic, JSON.stringify(message), { qos: 1 }, (error) => {
                 if (error) {
@@ -1753,19 +1705,6 @@
             return `${minutes}m`;
         }
 
-        function formatTime(timestamp) {
-            if (!timestamp) return '--';
-            
-            const date = new Date(timestamp * 1000);
-            const now = new Date();
-            const diff = now - date;
-            
-            if (diff < 60000) return 'Just now';
-            if (diff < 3600000) return Math.floor(diff / 60000) + ' min ago';
-            if (diff < 86400000) return Math.floor(diff / 3600000) + ' hour ago';
-            return Math.floor(diff / 86400000) + ' day ago';
-        }
-
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             // Check authentication
@@ -1787,8 +1726,8 @@
                 }
             }, 30000);
             
-            // Update next sensor time every minute
-            setInterval(updateNextSensorTime, 60000);
+            // Update next sensor time every second
+            setInterval(updateNextSensorTime, 1000);
             
             // Enter key login
             document.getElementById('password').addEventListener('keypress', (e) => {
