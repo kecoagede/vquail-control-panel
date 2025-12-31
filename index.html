@@ -1752,23 +1752,23 @@
     </div>
 
     <script>
-        // Configuration - Credentials removed from source code
+        // Configuration - Fixed credentials
         const CONFIG = {
             mqtt: {
                 host: '514ee1c5407448169298c78647ad26b9.s1.eu.hivemq.cloud',
                 port: 8884,
-                // Note: MQTT credentials are not stored in the source code
-                // They will be provided by the user during login
+                // MQTT credentials
+                username: 'vquail',
+                password: 'Vquail12345',
                 clientId: 'vquail-web-' + Math.random().toString(36).substr(2, 9)
+            },
+            web: {
+                // Web dashboard login credentials
+                username: 'vquail',
+                password: 'vquail123'
             },
             sensorInterval: 1800000, // 30 minutes in milliseconds
             statusUpdateInterval: 30000 // 30 seconds for status updates
-        };
-
-        // Default credentials
-        const DEFAULT_CREDENTIALS = {
-            username: 'vquail',
-            password: 'vquail123'
         };
 
         // State
@@ -1779,11 +1779,8 @@
         let previousTemp = null;
         let previousHum = null;
         
-        // User credentials (will be set after login)
-        let userCredentials = {
-            mqttUsername: '',
-            mqttPassword: ''
-        };
+        // Authentication state
+        let isAuthenticated = false;
         
         let systemState = {
             temp: -99.9, // Special value for invalid reading
@@ -1941,25 +1938,20 @@
             loginButton.disabled = true;
             loginButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing In...';
 
-            // For security, we don't store credentials in client-side code
-            // In production, this should be replaced with a proper authentication API
+            // Simple validation
             setTimeout(() => {
-                // Simple validation - in production, use proper authentication
-                if (username === DEFAULT_CREDENTIALS.username && password === DEFAULT_CREDENTIALS.password) {
-                    // Store encrypted credentials in session storage
+                if (username === CONFIG.web.username && password === CONFIG.web.password) {
+                    // Store authentication state
+                    isAuthenticated = true;
+                    
+                    // Store session info
                     const authData = {
-                        username: username,
+                        authenticated: true,
                         timestamp: Date.now(),
-                        // Note: Never store passwords in local storage
-                        // In production, use secure tokens instead
                         sessionId: 'session_' + Math.random().toString(36).substr(2, 16)
                     };
                     
                     sessionStorage.setItem('vquail_auth', JSON.stringify(authData));
-                    
-                    // Store MQTT credentials for connection
-                    userCredentials.mqttUsername = username;
-                    userCredentials.mqttPassword = password;
                     
                     // Animate login card exit
                     const loginCard = document.querySelector('.login-card');
@@ -1993,7 +1985,7 @@
                     loginButton.disabled = false;
                     loginButton.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
                 }
-            }, 1000); // Simulate authentication delay
+            }, 1000);
         }
 
         function logout() {
@@ -2003,14 +1995,9 @@
                     mqttClient.end();
                 }
                 
-                // Clear all stored data
+                // Clear authentication state
+                isAuthenticated = false;
                 sessionStorage.removeItem('vquail_auth');
-                localStorage.removeItem('vquail_auth');
-                localStorage.removeItem('theme');
-                
-                // Clear user credentials
-                userCredentials.mqttUsername = '';
-                userCredentials.mqttPassword = '';
                 
                 // Clear form fields
                 document.getElementById('username').value = '';
@@ -2039,33 +2026,13 @@
         }
 
         function checkAuth() {
-            // Check session storage first
-            let authData = sessionStorage.getItem('vquail_auth');
-            
-            if (!authData) {
-                // Check localStorage for backward compatibility
-                authData = localStorage.getItem('vquail_auth');
-                if (authData) {
-                    const data = JSON.parse(authData);
-                    if (Date.now() - data.timestamp < 8 * 60 * 60 * 1000) {
-                        // Convert to session storage
-                        sessionStorage.setItem('vquail_auth', authData);
-                        localStorage.removeItem('vquail_auth');
-                    } else {
-                        return false;
-                    }
-                } else {
-                    return false;
-                }
-            }
+            // Check session storage
+            const authData = sessionStorage.getItem('vquail_auth');
             
             if (authData) {
                 const data = JSON.parse(authData);
-                if (Date.now() - data.timestamp < 8 * 60 * 60 * 1000) {
-                    // Load MQTT credentials
-                    userCredentials.mqttUsername = data.username;
-                    userCredentials.mqttPassword = DEFAULT_CREDENTIALS.password; // In production, this should come from secure storage
-                    
+                if (data.authenticated && Date.now() - data.timestamp < 8 * 60 * 60 * 1000) {
+                    isAuthenticated = true;
                     document.getElementById('loginContainer').style.display = 'none';
                     document.getElementById('dashboardContainer').style.display = 'block';
                     return true;
@@ -2076,15 +2043,13 @@
 
         // MQTT Connection
         function connectMQTT() {
-            if (mqttClient && mqttClient.connected) {
-                showNotification('Already connected', 'info');
+            if (!isAuthenticated) {
+                showNotification('Please login first', 'error');
                 return;
             }
-
-            // Check if we have credentials
-            if (!userCredentials.mqttUsername || !userCredentials.mqttPassword) {
-                showNotification('Please login first', 'error');
-                logout();
+            
+            if (mqttClient && mqttClient.connected) {
+                showNotification('Already connected', 'info');
                 return;
             }
 
@@ -2097,8 +2062,8 @@
             document.getElementById('loadingSpinner').style.display = 'flex';
 
             const options = {
-                username: userCredentials.mqttUsername,
-                password: userCredentials.mqttPassword,
+                username: CONFIG.mqtt.username,
+                password: CONFIG.mqtt.password,
                 clientId: CONFIG.mqtt.clientId,
                 clean: true,
                 reconnectPeriod: 3000,
@@ -2145,10 +2110,7 @@
                     
                     // Check if it's an authentication error
                     if (error.message.includes('auth') || error.message.includes('Authentication')) {
-                        showNotification('MQTT authentication failed. Please check your credentials.', 'error');
-                        setTimeout(() => {
-                            logout();
-                        }, 2000);
+                        showNotification('MQTT authentication failed. Please check your MQTT credentials.', 'error');
                     } else {
                         showNotification(`Connection error: ${error.message}`, 'error');
                     }
@@ -2563,478 +2525,478 @@
             showNotification('Calibration saved', 'success');
             
             // Reset display colors
-                document.getElementById('tempCalValue').style.color = '';
-                document.getElementById('humCalValue').style.color = '';
-            }
+            document.getElementById('tempCalValue').style.color = '';
+            document.getElementById('humCalValue').style.color = '';
+        }
     
-            // System Functions
-            function requestStatus() {
-                if (!isConnected) return;
-                
+        // System Functions
+        function requestStatus() {
+            if (!isConnected) return;
+            
+            const command = {
+                request: "full",
+                timestamp: Date.now(),
+                source: 'web'
+            };
+
+            publishMessage('vquail/status/request', command);
+            showNotification('Status update requested', 'info');
+        }
+    
+        function sendReboot() {
+            if (!isConnected) {
+                showNotification('Not connected', 'error');
+                return;
+            }
+
+            if (confirm('Are you sure you want to reboot the device? This will interrupt control for about 30 seconds.')) {
                 const command = {
-                    request: "full",
+                    reboot: true,
                     timestamp: Date.now(),
                     source: 'web'
                 };
-    
-                publishMessage('vquail/status/request', command);
-                showNotification('Status update requested', 'info');
+
+                publishMessage('vquail/web/control', command);
+                showNotification('Reboot command sent. Device will restart.', 'warning');
             }
+        }
     
-            function sendReboot() {
-                if (!isConnected) {
-                    showNotification('Not connected', 'error');
-                    return;
-                }
-    
-                if (confirm('Are you sure you want to reboot the device? This will interrupt control for about 30 seconds.')) {
-                    const command = {
-                        reboot: true,
-                        timestamp: Date.now(),
-                        source: 'web'
-                    };
-    
-                    publishMessage('vquail/web/control', command);
-                    showNotification('Reboot command sent. Device will restart.', 'warning');
-                }
+        function forceSensorRead() {
+            if (!isConnected) {
+                showNotification('Not connected', 'error');
+                return;
             }
+
+            // Show validation progress
+            updateValidationProgress(0);
+            
+            const command = {
+                request: "sensor_read",
+                timestamp: Date.now(),
+                source: 'web'
+            };
+
+            publishMessage('vquail/status/request', command);
+            showNotification('Forcing sensor read and validation...', 'info');
+        }
     
-            function forceSensorRead() {
-                if (!isConnected) {
-                    showNotification('Not connected', 'error');
-                    return;
-                }
-    
-                // Show validation progress
-                updateValidationProgress(0);
+        // UI Updates
+        function updateUI() {
+            // Update sensor validation status first
+            updateSensorValidationStatus();
+            
+            // Temperature
+            if (systemState.temp > -99 && systemState.hum > -99) {
+                document.getElementById('temperatureValue').textContent = systemState.temp.toFixed(1);
+                document.getElementById('humidityValue').textContent = systemState.hum.toFixed(1);
                 
-                const command = {
-                    request: "sensor_read",
-                    timestamp: Date.now(),
-                    source: 'web'
-                };
-    
-                publishMessage('vquail/status/request', command);
-                showNotification('Forcing sensor read and validation...', 'info');
-            }
-    
-            // UI Updates
-            function updateUI() {
-                // Update sensor validation status first
-                updateSensorValidationStatus();
+                document.getElementById('rawTemp').textContent = systemState.rawTemp.toFixed(1) + '°C';
+                document.getElementById('tempOffset').textContent = (systemState.tempOffset > 0 ? '+' : '') + systemState.tempOffset.toFixed(1) + '°C';
                 
-                // Temperature
-                if (systemState.temp > -99 && systemState.hum > -99) {
-                    document.getElementById('temperatureValue').textContent = systemState.temp.toFixed(1);
-                    document.getElementById('humidityValue').textContent = systemState.hum.toFixed(1);
-                    
-                    document.getElementById('rawTemp').textContent = systemState.rawTemp.toFixed(1) + '°C';
-                    document.getElementById('tempOffset').textContent = (systemState.tempOffset > 0 ? '+' : '') + systemState.tempOffset.toFixed(1) + '°C';
-                    
-                    document.getElementById('rawHum').textContent = systemState.rawHum.toFixed(1) + '%';
-                    document.getElementById('humOffset').textContent = (systemState.humOffset > 0 ? '+' : '') + systemState.humOffset.toFixed(1) + '%';
-                    
-                    document.getElementById('tempStatus').textContent = 'Validated';
-                    document.getElementById('humStatus').textContent = 'Validated';
+                document.getElementById('rawHum').textContent = systemState.rawHum.toFixed(1) + '%';
+                document.getElementById('humOffset').textContent = (systemState.humOffset > 0 ? '+' : '') + systemState.humOffset.toFixed(1) + '%';
+                
+                document.getElementById('tempStatus').textContent = 'Validated';
+                document.getElementById('humStatus').textContent = 'Validated';
+            } else {
+                document.getElementById('temperatureValue').textContent = '--';
+                document.getElementById('humidityValue').textContent = '--';
+                document.getElementById('rawTemp').textContent = '--';
+                document.getElementById('tempOffset').textContent = '--';
+                document.getElementById('rawHum').textContent = '--';
+                document.getElementById('humOffset').textContent = '--';
+                document.getElementById('tempStatus').textContent = systemState.sensor_online ? 'Validating...' : 'Offline';
+                document.getElementById('humStatus').textContent = systemState.sensor_online ? 'Validating...' : 'Offline';
+            }
+            
+            document.getElementById('tempUpdated').textContent = systemState.lastUpdate ? 
+                systemState.lastUpdate.toLocaleTimeString() : '--:--';
+            document.getElementById('humUpdated').textContent = systemState.lastUpdate ? 
+                systemState.lastUpdate.toLocaleTimeString() : '--:--';
+            
+            // System Status
+            document.getElementById('lifeStage').textContent = systemState.stage;
+            document.getElementById('quailAge').textContent = systemState.age + ' days';
+            document.getElementById('wifiRSSI').textContent = systemState.wifi_rssi + ' dBm';
+            document.getElementById('controlSource').textContent = systemState.control_channel;
+            document.getElementById('systemUptime').textContent = formatUptime(systemState.uptime);
+            document.getElementById('freeHeap').textContent = systemState.free_heap ? 
+                Math.round(systemState.free_heap / 1024) + ' KB' : '--';
+            document.getElementById('consecutiveReadings').textContent = systemState.consecutive_valid_readings || 0;
+            
+            // Sensor validation status
+            let sensorStatus = '--';
+            if (systemState.sensor_online) {
+                if (systemState.sensor_validated) {
+                    sensorStatus = 'Validated';
+                    document.getElementById('sensorValidation').style.color = 'var(--success)';
                 } else {
-                    document.getElementById('temperatureValue').textContent = '--';
-                    document.getElementById('humidityValue').textContent = '--';
-                    document.getElementById('rawTemp').textContent = '--';
-                    document.getElementById('tempOffset').textContent = '--';
-                    document.getElementById('rawHum').textContent = '--';
-                    document.getElementById('humOffset').textContent = '--';
-                    document.getElementById('tempStatus').textContent = systemState.sensor_online ? 'Validating...' : 'Offline';
-                    document.getElementById('humStatus').textContent = systemState.sensor_online ? 'Validating...' : 'Offline';
+                    sensorStatus = 'Validating...';
+                    document.getElementById('sensorValidation').style.color = 'var(--warning)';
                 }
-                
-                document.getElementById('tempUpdated').textContent = systemState.lastUpdate ? 
-                    systemState.lastUpdate.toLocaleTimeString() : '--:--';
-                document.getElementById('humUpdated').textContent = systemState.lastUpdate ? 
-                    systemState.lastUpdate.toLocaleTimeString() : '--:--';
-                
-                // System Status
-                document.getElementById('lifeStage').textContent = systemState.stage;
-                document.getElementById('quailAge').textContent = systemState.age + ' days';
-                document.getElementById('wifiRSSI').textContent = systemState.wifi_rssi + ' dBm';
-                document.getElementById('controlSource').textContent = systemState.control_channel;
-                document.getElementById('systemUptime').textContent = formatUptime(systemState.uptime);
-                document.getElementById('freeHeap').textContent = systemState.free_heap ? 
-                    Math.round(systemState.free_heap / 1024) + ' KB' : '--';
-                document.getElementById('consecutiveReadings').textContent = systemState.consecutive_valid_readings || 0;
-                
-                // Sensor validation status
-                let sensorStatus = '--';
-                if (systemState.sensor_online) {
-                    if (systemState.sensor_validated) {
-                        sensorStatus = 'Validated';
-                        document.getElementById('sensorValidation').style.color = 'var(--success)';
-                    } else {
-                        sensorStatus = 'Validating...';
-                        document.getElementById('sensorValidation').style.color = 'var(--warning)';
-                    }
-                } else {
-                    sensorStatus = 'Offline';
-                    document.getElementById('sensorValidation').style.color = 'var(--danger)';
-                }
-                document.getElementById('sensorValidation').textContent = sensorStatus;
-                
-                // Update next sensor update time
-                updateNextSensorTime();
-                
-                // Update optimal ranges based on current stage
-                updateOptimalRanges();
-                
-                // Update progress bars (only if we have valid data)
-                if (systemState.temp > -99 && systemState.hum > -99) {
-                    updateProgressBars();
-                }
-                
-                // Control UI
-                updateControlUI();
-                updateStageDisplay();
-                updateCalibrationDisplay();
-                updateStatusBadges();
+            } else {
+                sensorStatus = 'Offline';
+                document.getElementById('sensorValidation').style.color = 'var(--danger)';
             }
-    
-            function updateSensorValidationStatus() {
-                const tempValue = document.getElementById('temperatureValue');
-                const humValue = document.getElementById('humidityValue');
-                
-                // Check if we have valid readings
-                if (systemState.temp <= -99 || systemState.hum <= -99) {
-                    tempValue.textContent = '--';
-                    humValue.textContent = '--';
-                    document.getElementById('tempStatus').textContent = systemState.sensor_online ? 'Validating...' : 'Offline';
-                    document.getElementById('humStatus').textContent = systemState.sensor_online ? 'Validating...' : 'Offline';
-                }
+            document.getElementById('sensorValidation').textContent = sensorStatus;
+            
+            // Update next sensor update time
+            updateNextSensorTime();
+            
+            // Update optimal ranges based on current stage
+            updateOptimalRanges();
+            
+            // Update progress bars (only if we have valid data)
+            if (systemState.temp > -99 && systemState.hum > -99) {
+                updateProgressBars();
             }
+            
+            // Control UI
+            updateControlUI();
+            updateStageDisplay();
+            updateCalibrationDisplay();
+            updateStatusBadges();
+        }
     
-            function updateControlUI() {
-                const isAuto = systemState.auto;
-                
-                // Mode buttons
-                document.getElementById('autoModeBtn').classList.toggle('active', isAuto);
-                document.getElementById('manualModeBtn').classList.toggle('active', !isAuto);
-                
-                // Mode warning
-                document.getElementById('modeWarning').style.display = isAuto ? 'flex' : 'none';
-                
-                // Control mode badge
-                document.getElementById('controlMode').textContent = isAuto ? 'AUTO' : 'MANUAL';
-                
-                // Control buttons state
-                const controlButtons = document.querySelectorAll('.control-btn');
-                controlButtons.forEach(btn => {
-                    btn.disabled = isAuto;
-                });
-                
-                // Update control button states
-                updateControlButtons();
+        function updateSensorValidationStatus() {
+            const tempValue = document.getElementById('temperatureValue');
+            const humValue = document.getElementById('humidityValue');
+            
+            // Check if we have valid readings
+            if (systemState.temp <= -99 || systemState.hum <= -99) {
+                tempValue.textContent = '--';
+                humValue.textContent = '--';
+                document.getElementById('tempStatus').textContent = systemState.sensor_online ? 'Validating...' : 'Offline';
+                document.getElementById('humStatus').textContent = systemState.sensor_online ? 'Validating...' : 'Offline';
             }
+        }
     
-            function updateControlButtons() {
-                const fanOnBtn = document.getElementById('fanOnBtn');
-                const fanOffBtn = document.getElementById('fanOffBtn');
-                const heatOnBtn = document.getElementById('heatOnBtn');
-                const heatOffBtn = document.getElementById('heatOffBtn');
-                
-                if (fanOnBtn) fanOnBtn.classList.toggle('active', systemState.fan);
-                if (fanOffBtn) fanOffBtn.classList.toggle('active', !systemState.fan);
-                if (heatOnBtn) heatOnBtn.classList.toggle('active', systemState.heat);
-                if (heatOffBtn) heatOffBtn.classList.toggle('active', !systemState.heat);
-            }
+        function updateControlUI() {
+            const isAuto = systemState.auto;
+            
+            // Mode buttons
+            document.getElementById('autoModeBtn').classList.toggle('active', isAuto);
+            document.getElementById('manualModeBtn').classList.toggle('active', !isAuto);
+            
+            // Mode warning
+            document.getElementById('modeWarning').style.display = isAuto ? 'flex' : 'none';
+            
+            // Control mode badge
+            document.getElementById('controlMode').textContent = isAuto ? 'AUTO' : 'MANUAL';
+            
+            // Control buttons state
+            const controlButtons = document.querySelectorAll('.control-btn');
+            controlButtons.forEach(btn => {
+                btn.disabled = isAuto;
+            });
+            
+            // Update control button states
+            updateControlButtons();
+        }
     
-            function updateStageDisplay() {
-                document.getElementById('currentAgeDisplay').textContent = currentAge;
-                
-                // Highlight active stage button
-                document.querySelectorAll('.stage-btn').forEach(btn => {
-                    btn.classList.remove('active');
-                });
-                
-                const stageButtons = {
-                    'BROODING_WEEK1': 'stageBroodW1',
-                    'BROODING_WEEK2': 'stageBroodW2',
-                    'GROWER_WEEK3_6': 'stageGrower',
-                    'ADULT_LAYER': 'stageAdult'
-                };
-                
-                if (stageButtons[currentStage]) {
-                    const activeBtn = document.getElementById(stageButtons[currentStage]);
-                    if (activeBtn) {
-                        activeBtn.classList.add('active');
-                        
-                        // Animate the active button
-                        activeBtn.style.animation = 'stageSelect 0.4s ease-out';
-                        setTimeout(() => {
-                            activeBtn.style.animation = '';
-                        }, 400);
-                    }
-                }
-            }
+        function updateControlButtons() {
+            const fanOnBtn = document.getElementById('fanOnBtn');
+            const fanOffBtn = document.getElementById('fanOffBtn');
+            const heatOnBtn = document.getElementById('heatOnBtn');
+            const heatOffBtn = document.getElementById('heatOffBtn');
+            
+            if (fanOnBtn) fanOnBtn.classList.toggle('active', systemState.fan);
+            if (fanOffBtn) fanOffBtn.classList.toggle('active', !systemState.fan);
+            if (heatOnBtn) heatOnBtn.classList.toggle('active', systemState.heat);
+            if (heatOffBtn) heatOffBtn.classList.toggle('active', !systemState.heat);
+        }
     
-            function updateCalibrationDisplay() {
-                const tempCalValue = document.getElementById('tempCalValue');
-                const humCalValue = document.getElementById('humCalValue');
-                
-                if (tempCalValue) tempCalValue.textContent = systemState.tempOffset.toFixed(1) + '°C';
-                if (humCalValue) humCalValue.textContent = systemState.humOffset.toFixed(1) + '%';
-                
-                // Reset pending changes if we received new values from device
-                calibrationPending = { temp: 0, hum: 0 };
-            }
-    
-            function updateStatusBadges() {
-                const stageConfig = LIFE_STAGES[currentStage];
-                if (!stageConfig) return;
-                
-                // Only update badges if we have valid sensor data
-                if (systemState.temp <= -99 || systemState.hum <= -99) {
-                    const tempBadge = document.getElementById('tempBadge');
-                    const humBadge = document.getElementById('humBadge');
+        function updateStageDisplay() {
+            document.getElementById('currentAgeDisplay').textContent = currentAge;
+            
+            // Highlight active stage button
+            document.querySelectorAll('.stage-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            const stageButtons = {
+                'BROODING_WEEK1': 'stageBroodW1',
+                'BROODING_WEEK2': 'stageBroodW2',
+                'GROWER_WEEK3_6': 'stageGrower',
+                'ADULT_LAYER': 'stageAdult'
+            };
+            
+            if (stageButtons[currentStage]) {
+                const activeBtn = document.getElementById(stageButtons[currentStage]);
+                if (activeBtn) {
+                    activeBtn.classList.add('active');
                     
-                    if (tempBadge) {
-                        tempBadge.textContent = 'Validating';
-                        tempBadge.className = 'status-indicator warning';
-                    }
-                    if (humBadge) {
-                        humBadge.textContent = 'Validating';
-                        humBadge.className = 'status-indicator warning';
-                    }
-                    return;
+                    // Animate the active button
+                    activeBtn.style.animation = 'stageSelect 0.4s ease-out';
+                    setTimeout(() => {
+                        activeBtn.style.animation = '';
+                    }, 400);
                 }
-                
-                // Temperature badge
+            }
+        }
+    
+        function updateCalibrationDisplay() {
+            const tempCalValue = document.getElementById('tempCalValue');
+            const humCalValue = document.getElementById('humCalValue');
+            
+            if (tempCalValue) tempCalValue.textContent = systemState.tempOffset.toFixed(1) + '°C';
+            if (humCalValue) humCalValue.textContent = systemState.humOffset.toFixed(1) + '%';
+            
+            // Reset pending changes if we received new values from device
+            calibrationPending = { temp: 0, hum: 0 };
+        }
+    
+        function updateStatusBadges() {
+            const stageConfig = LIFE_STAGES[currentStage];
+            if (!stageConfig) return;
+            
+            // Only update badges if we have valid sensor data
+            if (systemState.temp <= -99 || systemState.hum <= -99) {
                 const tempBadge = document.getElementById('tempBadge');
-                if (tempBadge) {
-                    if (systemState.temp < stageConfig.tempMin - 2) {
-                        tempBadge.textContent = 'Too Cold';
-                        tempBadge.className = 'status-indicator danger';
-                    } else if (systemState.temp > stageConfig.tempMax + 2) {
-                        tempBadge.textContent = 'Too Hot';
-                        tempBadge.className = 'status-indicator danger';
-                    } else if (systemState.temp < stageConfig.tempMin || systemState.temp > stageConfig.tempMax) {
-                        tempBadge.textContent = 'Warning';
-                        tempBadge.className = 'status-indicator warning';
-                    } else {
-                        tempBadge.textContent = 'Optimal';
-                        tempBadge.className = 'status-indicator success';
-                    }
-                }
-                
-                // Humidity badge
                 const humBadge = document.getElementById('humBadge');
+                
+                if (tempBadge) {
+                    tempBadge.textContent = 'Validating';
+                    tempBadge.className = 'status-indicator warning';
+                }
                 if (humBadge) {
-                    if (systemState.hum < stageConfig.humMin - 10) {
-                        humBadge.textContent = 'Too Dry';
-                        humBadge.className = 'status-indicator danger';
-                    } else if (systemState.hum > stageConfig.humMax + 10) {
-                        humBadge.textContent = 'Too Humid';
-                        humBadge.className = 'status-indicator danger';
-                    } else if (systemState.hum < stageConfig.humMin || systemState.hum > stageConfig.humMax) {
-                        humBadge.textContent = 'Warning';
-                        humBadge.className = 'status-indicator warning';
-                    } else {
-                        humBadge.textContent = 'Normal';
-                        humBadge.className = 'status-indicator success';
-                    }
+                    humBadge.textContent = 'Validating';
+                    humBadge.className = 'status-indicator warning';
                 }
+                return;
             }
-    
-            function updateOptimalRanges() {
-                const stageConfig = LIFE_STAGES[currentStage];
-                if (stageConfig) {
-                    const tempRange = document.getElementById('tempRange');
-                    const humRange = document.getElementById('humRange');
-                    
-                    if (tempRange) tempRange.textContent = `${stageConfig.tempMin}-${stageConfig.tempMax}°C`;
-                    if (humRange) humRange.textContent = `${stageConfig.humMin}-${stageConfig.humMax}%`;
-                }
-            }
-    
-            function updateProgressBars() {
-                const stageConfig = LIFE_STAGES[currentStage];
-                if (!stageConfig) return;
-                
-                // Only update progress bars if we have valid data
-                if (systemState.temp <= -99 || systemState.hum <= -99) {
-                    const tempProgress = document.getElementById('tempProgress');
-                    const humProgress = document.getElementById('humProgress');
-                    
-                    if (tempProgress) tempProgress.style.width = '0%';
-                    if (humProgress) humProgress.style.width = '0%';
-                    return;
-                }
-                
-                // Temperature progress
-                const tempRange = stageConfig.tempMax - stageConfig.tempMin;
-                const tempPosition = Math.max(0, Math.min(100, 
-                    ((systemState.temp - stageConfig.tempMin) / tempRange) * 100));
-                const tempProgress = document.getElementById('tempProgress');
-                if (tempProgress) tempProgress.style.width = `${tempPosition}%`;
-                
-                // Humidity progress
-                const humRange = stageConfig.humMax - stageConfig.humMin;
-                const humPosition = Math.max(0, Math.min(100, 
-                    ((systemState.hum - stageConfig.humMin) / humRange) * 100));
-                const humProgress = document.getElementById('humProgress');
-                if (humProgress) humProgress.style.width = `${humPosition}%`;
-            }
-    
-            function updateNextSensorTime() {
-                const now = Date.now();
-                let nextUpdateText = 'Now';
-                
-                if (nextSensorUpdate > now) {
-                    const remaining = nextSensorUpdate - now;
-                    const minutes = Math.floor(remaining / 60000);
-                    const seconds = Math.floor((remaining % 60000) / 1000);
-                    
-                    if (minutes > 0) {
-                        nextUpdateText = `${minutes}m ${seconds}s`;
-                    } else {
-                        nextUpdateText = `${seconds}s`;
-                    }
-                }
-                
-                const tempNextUpdate = document.getElementById('tempNextUpdate');
-                const humNextUpdate = document.getElementById('humNextUpdate');
-                const nextUpdateBadge = document.getElementById('nextUpdateBadge');
-                
-                if (tempNextUpdate) tempNextUpdate.textContent = nextUpdateText;
-                if (humNextUpdate) humNextUpdate.textContent = nextUpdateText;
-                if (nextUpdateBadge) nextUpdateBadge.textContent = nextUpdateText;
-            }
-    
-            function updateConnectionStatus(status) {
-                const dot = document.getElementById('mqttStatusDot');
-                const text = document.getElementById('mqttStatusText');
-                const statusDiv = document.getElementById('connectionStatus');
-                
-                if (dot) dot.className = 'status-dot ' + status;
-                if (text) text.textContent = status.charAt(0).toUpperCase() + status.slice(1);
-                
-                // Animate status change
-                if (statusDiv) {
-                    statusDiv.style.animation = 'none';
-                    setTimeout(() => {
-                        statusDiv.style.animation = 'pulse 0.5s';
-                    }, 10);
-                }
-            }
-    
-            // Utility Functions
-            function publishMessage(topic, message) {
-                if (!mqttClient || !isConnected) {
-                    showNotification('Not connected to MQTT', 'error');
-                    return;
-                }
-                
-                mqttClient.publish(topic, JSON.stringify(message), { qos: 1 }, (error) => {
-                    if (error) {
-                        console.error('Publish error:', error);
-                        showNotification('Failed to send command', 'error');
-                    }
-                });
-            }
-    
-            function showNotification(message, type = 'info') {
-                const notification = document.getElementById('notification');
-                const messageElement = document.getElementById('notificationMessage');
-                
-                if (!notification || !messageElement) return;
-                
-                // Remove existing notifications
-                notification.style.display = 'none';
-                
-                // Set new notification
-                notification.className = `notification ${type}`;
-                messageElement.textContent = message;
-                notification.style.display = 'flex';
-                
-                // Auto-hide after 4 seconds
-                setTimeout(() => {
-                    notification.style.animation = 'slideInRight 0.5s cubic-bezier(0.4, 0, 0.2, 1) reverse forwards';
-                    setTimeout(() => {
-                        notification.style.display = 'none';
-                        notification.style.animation = '';
-                    }, 500);
-                }, 4000);
-            }
-    
-            function toggleTheme() {
-                const currentTheme = document.body.getAttribute('data-theme');
-                if (currentTheme === 'light') {
-                    document.body.removeAttribute('data-theme');
-                    localStorage.setItem('theme', 'dark');
-                    showNotification('Switched to dark theme', 'info');
+            
+            // Temperature badge
+            const tempBadge = document.getElementById('tempBadge');
+            if (tempBadge) {
+                if (systemState.temp < stageConfig.tempMin - 2) {
+                    tempBadge.textContent = 'Too Cold';
+                    tempBadge.className = 'status-indicator danger';
+                } else if (systemState.temp > stageConfig.tempMax + 2) {
+                    tempBadge.textContent = 'Too Hot';
+                    tempBadge.className = 'status-indicator danger';
+                } else if (systemState.temp < stageConfig.tempMin || systemState.temp > stageConfig.tempMax) {
+                    tempBadge.textContent = 'Warning';
+                    tempBadge.className = 'status-indicator warning';
                 } else {
-                    document.body.setAttribute('data-theme', 'light');
-                    localStorage.setItem('theme', 'light');
-                    showNotification('Switched to light theme', 'info');
+                    tempBadge.textContent = 'Optimal';
+                    tempBadge.className = 'status-indicator success';
                 }
             }
-    
-            function formatUptime(seconds) {
-                if (!seconds) return '--';
-                
-                const days = Math.floor(seconds / 86400);
-                const hours = Math.floor((seconds % 86400) / 3600);
-                const minutes = Math.floor((seconds % 3600) / 60);
-                
-                if (days > 0) return `${days}d ${hours}h`;
-                if (hours > 0) return `${hours}h ${minutes}m`;
-                return `${minutes}m`;
+            
+            // Humidity badge
+            const humBadge = document.getElementById('humBadge');
+            if (humBadge) {
+                if (systemState.hum < stageConfig.humMin - 10) {
+                    humBadge.textContent = 'Too Dry';
+                    humBadge.className = 'status-indicator danger';
+                } else if (systemState.hum > stageConfig.humMax + 10) {
+                    humBadge.textContent = 'Too Humid';
+                    humBadge.className = 'status-indicator danger';
+                } else if (systemState.hum < stageConfig.humMin || systemState.hum > stageConfig.humMax) {
+                    humBadge.textContent = 'Warning';
+                    humBadge.className = 'status-indicator warning';
+                } else {
+                    humBadge.textContent = 'Normal';
+                    humBadge.className = 'status-indicator success';
+                }
             }
+        }
     
-            // Initialize
-            document.addEventListener('DOMContentLoaded', () => {
-                // Initialize background animation
-                initBackgroundAnimation();
+        function updateOptimalRanges() {
+            const stageConfig = LIFE_STAGES[currentStage];
+            if (stageConfig) {
+                const tempRange = document.getElementById('tempRange');
+                const humRange = document.getElementById('humRange');
                 
-                // Check authentication
-                if (checkAuth()) {
-                    // Auto-connect to MQTT
-                    setTimeout(connectMQTT, 1000);
+                if (tempRange) tempRange.textContent = `${stageConfig.tempMin}-${stageConfig.tempMax}°C`;
+                if (humRange) humRange.textContent = `${stageConfig.humMin}-${stageConfig.humMax}%`;
+            }
+        }
+    
+        function updateProgressBars() {
+            const stageConfig = LIFE_STAGES[currentStage];
+            if (!stageConfig) return;
+            
+            // Only update progress bars if we have valid data
+            if (systemState.temp <= -99 || systemState.hum <= -99) {
+                const tempProgress = document.getElementById('tempProgress');
+                const humProgress = document.getElementById('humProgress');
+                
+                if (tempProgress) tempProgress.style.width = '0%';
+                if (humProgress) humProgress.style.width = '0%';
+                return;
+            }
+            
+            // Temperature progress
+            const tempRange = stageConfig.tempMax - stageConfig.tempMin;
+            const tempPosition = Math.max(0, Math.min(100, 
+                ((systemState.temp - stageConfig.tempMin) / tempRange) * 100));
+            const tempProgress = document.getElementById('tempProgress');
+            if (tempProgress) tempProgress.style.width = `${tempPosition}%`;
+            
+            // Humidity progress
+            const humRange = stageConfig.humMax - stageConfig.humMin;
+            const humPosition = Math.max(0, Math.min(100, 
+                ((systemState.hum - stageConfig.humMin) / humRange) * 100));
+            const humProgress = document.getElementById('humProgress');
+            if (humProgress) humProgress.style.width = `${humPosition}%`;
+        }
+    
+        function updateNextSensorTime() {
+            const now = Date.now();
+            let nextUpdateText = 'Now';
+            
+            if (nextSensorUpdate > now) {
+                const remaining = nextSensorUpdate - now;
+                const minutes = Math.floor(remaining / 60000);
+                const seconds = Math.floor((remaining % 60000) / 1000);
+                
+                if (minutes > 0) {
+                    nextUpdateText = `${minutes}m ${seconds}s`;
+                } else {
+                    nextUpdateText = `${seconds}s`;
                 }
-                
-                // Load saved theme
-                const savedTheme = localStorage.getItem('theme');
-                if (savedTheme === 'light') {
-                    document.body.setAttribute('data-theme', 'light');
-                }
-                
-                // Auto-reconnect every 30 seconds if disconnected
-                setInterval(() => {
-                    if (mqttClient && mqttClient.disconnected && !document.getElementById('connectBtn').disabled) {
-                        connectMQTT();
-                    }
-                }, 30000);
-                
-                // Update next sensor time every second
-                setInterval(updateNextSensorTime, 1000);
-                
-                // Enter key login
-                document.getElementById('password').addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') login();
-                });
-                
-                // Animate cards on load
+            }
+            
+            const tempNextUpdate = document.getElementById('tempNextUpdate');
+            const humNextUpdate = document.getElementById('humNextUpdate');
+            const nextUpdateBadge = document.getElementById('nextUpdateBadge');
+            
+            if (tempNextUpdate) tempNextUpdate.textContent = nextUpdateText;
+            if (humNextUpdate) humNextUpdate.textContent = nextUpdateText;
+            if (nextUpdateBadge) nextUpdateBadge.textContent = nextUpdateText;
+        }
+    
+        function updateConnectionStatus(status) {
+            const dot = document.getElementById('mqttStatusDot');
+            const text = document.getElementById('mqttStatusText');
+            const statusDiv = document.getElementById('connectionStatus');
+            
+            if (dot) dot.className = 'status-dot ' + status;
+            if (text) text.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+            
+            // Animate status change
+            if (statusDiv) {
+                statusDiv.style.animation = 'none';
                 setTimeout(() => {
-                    document.querySelectorAll('.card').forEach((card, index) => {
-                        card.style.animationDelay = `${index * 0.1}s`;
-                    });
-                }, 100);
-                
-                // Security: Clear password field on page load
-                document.getElementById('password').value = '';
-                
-                // Security: Clear username if it's the default
-                const usernameInput = document.getElementById('username');
-                if (usernameInput.value === 'vquail') {
-                    usernameInput.value = '';
+                    statusDiv.style.animation = 'pulse 0.5s';
+                }, 10);
+            }
+        }
+    
+        // Utility Functions
+        function publishMessage(topic, message) {
+            if (!mqttClient || !isConnected) {
+                showNotification('Not connected to MQTT', 'error');
+                return;
+            }
+            
+            mqttClient.publish(topic, JSON.stringify(message), { qos: 1 }, (error) => {
+                if (error) {
+                    console.error('Publish error:', error);
+                    showNotification('Failed to send command', 'error');
                 }
             });
-        </script>
-    </body>
-    </html>
+        }
+    
+        function showNotification(message, type = 'info') {
+            const notification = document.getElementById('notification');
+            const messageElement = document.getElementById('notificationMessage');
+            
+            if (!notification || !messageElement) return;
+            
+            // Remove existing notifications
+            notification.style.display = 'none';
+            
+            // Set new notification
+            notification.className = `notification ${type}`;
+            messageElement.textContent = message;
+            notification.style.display = 'flex';
+            
+            // Auto-hide after 4 seconds
+            setTimeout(() => {
+                notification.style.animation = 'slideInRight 0.5s cubic-bezier(0.4, 0, 0.2, 1) reverse forwards';
+                setTimeout(() => {
+                    notification.style.display = 'none';
+                    notification.style.animation = '';
+                }, 500);
+            }, 4000);
+        }
+    
+        function toggleTheme() {
+            const currentTheme = document.body.getAttribute('data-theme');
+            if (currentTheme === 'light') {
+                document.body.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'dark');
+                showNotification('Switched to dark theme', 'info');
+            } else {
+                document.body.setAttribute('data-theme', 'light');
+                localStorage.setItem('theme', 'light');
+                showNotification('Switched to light theme', 'info');
+            }
+        }
+    
+        function formatUptime(seconds) {
+            if (!seconds) return '--';
+            
+            const days = Math.floor(seconds / 86400);
+            const hours = Math.floor((seconds % 86400) / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            
+            if (days > 0) return `${days}d ${hours}h`;
+            if (hours > 0) return `${hours}h ${minutes}m`;
+            return `${minutes}m`;
+        }
+    
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize background animation
+            initBackgroundAnimation();
+            
+            // Check authentication
+            if (checkAuth()) {
+                // Auto-connect to MQTT
+                setTimeout(connectMQTT, 1000);
+            }
+            
+            // Load saved theme
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'light') {
+                document.body.setAttribute('data-theme', 'light');
+            }
+            
+            // Auto-reconnect every 30 seconds if disconnected
+            setInterval(() => {
+                if (mqttClient && mqttClient.disconnected && !document.getElementById('connectBtn').disabled) {
+                    connectMQTT();
+                }
+            }, 30000);
+            
+            // Update next sensor time every second
+            setInterval(updateNextSensorTime, 1000);
+            
+            // Enter key login
+            document.getElementById('password').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') login();
+            });
+            
+            // Animate cards on load
+            setTimeout(() => {
+                document.querySelectorAll('.card').forEach((card, index) => {
+                    card.style.animationDelay = `${index * 0.1}s`;
+                });
+            }, 100);
+            
+            // Security: Clear password field on page load
+            document.getElementById('password').value = '';
+            
+            // Security: Clear username if it's the default
+            const usernameInput = document.getElementById('username');
+            if (usernameInput.value === 'vquail') {
+                usernameInput.value = '';
+            }
+        });
+    </script>
+</body>
+</html>
